@@ -18,11 +18,11 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 cp .env.example .env.local
 ```
 
-Remplis `.env.local` avec les valeurs de **Project Settings → API** :
+Remplis `.env.local`. Le plus rapide : bouton **Connect** en haut du dashboard → onglet **App Frameworks** → **Next.js**, qui affiche le bloc tout prêt.
 
 - `NEXT_PUBLIC_SUPABASE_URL` — l'URL du projet
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — la clé publique (« anon » ou « publishable »)
-- `SUPABASE_SERVICE_ROLE_KEY` — la clé secrète, uniquement pour le seed (jamais côté client, jamais sur Vercel)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — la clé publique, destinée au navigateur
+- `SUPABASE_SECRET_KEY` — la clé secrète (ex-`service_role`), uniquement pour le seed : jamais côté client, jamais sur Vercel
 
 ### 3. Lancer
 
@@ -52,7 +52,7 @@ Crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de pass
 
 1. Pousse le repo sur GitHub.
 2. [vercel.com](https://vercel.com) → **New Project** → importe le repo (framework détecté : Next.js, rien à changer).
-3. Dans **Environment Variables**, ajoute `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` (⚠️ pas la clé service_role).
+3. Dans **Environment Variables**, ajoute `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (⚠️ pas la clé secrète).
 4. **Deploy** — l'app est en ligne et partageable.
 
 ## Fonctionnement
