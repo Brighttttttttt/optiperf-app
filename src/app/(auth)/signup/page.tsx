@@ -8,7 +8,7 @@ import { inputClass, labelClass } from "@/lib/styles";
 import type { Role } from "@/lib/types";
 
 const ROLES: { value: Role; label: string; hint: string }[] = [
-  { value: "athlete", label: "Athlète", hint: "Je suis un programme" },
+  { value: "athlete", label: "Athlète", hint: "Je m'entraîne avec un coach" },
   { value: "coach", label: "Coach", hint: "J'entraîne des athlètes" },
 ];
 
