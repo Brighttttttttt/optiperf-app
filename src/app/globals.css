@@ -1,26 +1,47 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Palette « carnet d'entraînement » : surfaces vert-de-gris, encre sapin */
+  --color-surface: #f2f5f1;
+  --color-card: #ffffff;
+  --color-line: #e0e6df;
+  --color-ink: #17221c;
+  --color-ink-soft: #67746c;
+  --color-pine: #17604c;
+  --color-pine-deep: #104537;
+  --color-pine-soft: #e0ede6;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Rampe d'effort RPE : du calme à l'intense */
+  --color-rpe-low: #2f8f68;
+  --color-rpe-mid: #d29a2f;
+  --color-rpe-high: #d96c2b;
+  --color-rpe-max: #c23a2b;
+  --color-rpe-low-soft: #e3f1ea;
+  --color-rpe-mid-soft: #f8eed7;
+  --color-rpe-high-soft: #f9e5d6;
+  --color-rpe-max-soft: #f7ddd9;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-barlow), system-ui, sans-serif;
+  --font-display: var(--font-barlow-condensed), var(--font-barlow), sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
