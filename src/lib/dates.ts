@@ -1,11 +1,12 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Date locale au format YYYY-MM-DD (sans décalage UTC). */
+// L'app vise un public français : les serveurs (Vercel) tournent en UTC,
+// on fixe donc le fuseau plutôt que d'hériter de celui de la machine.
+const TZ = "Europe/Paris";
+
+/** Date au format YYYY-MM-DD dans le fuseau de l'app. */
 export function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return d.toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
 export function addDays(d: Date, n: number): Date {
@@ -20,6 +21,7 @@ export function formatDayLong(iso: string): string {
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: TZ,
   });
 }
 
@@ -28,6 +30,7 @@ export function formatDayShort(iso: string): string {
   return new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
+    timeZone: TZ,
   });
 }
 
@@ -48,9 +51,17 @@ export function formatDayRelative(iso: string, now = new Date()): string {
 export function formatTimestamp(isoDateTime: string, now = new Date()): string {
   const d = new Date(isoDateTime);
   if (toISODate(d) === toISODate(now)) {
-    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: TZ,
+    });
   }
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: TZ,
+  });
 }
 
 /** 95 → "1 h 35", 45 → "45 min". */
