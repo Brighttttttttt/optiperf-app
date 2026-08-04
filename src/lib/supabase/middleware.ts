@@ -36,16 +36,19 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
-  if (!user && !isPublic) {
+  const destination = !user && !isPublic ? "/login" : user && isPublic ? "/" : null;
+  if (destination) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    url.pathname = destination;
+    url.search = "";
+    const redirect = NextResponse.redirect(url);
+    // Propage les cookies de session rafraîchis par getUser() : sans eux,
+    // le navigateur repart avec l'ancien jeton (déjà consommé par la
+    // rotation) et boucle entre / et /login — « trop de redirections ».
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirect.cookies.set(cookie);
+    }
+    return redirect;
   }
 
   return supabaseResponse;
