@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { addObjective } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
 import { IconPlus } from "./Icons";
@@ -9,14 +9,14 @@ import { btnGhost, inputClass, labelClass } from "@/lib/styles";
 export function ObjectiveForm({ athleteId }: { athleteId: string }) {
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState(addObjective, null);
-  const formRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    if (state?.ok) {
-      formRef.current?.reset();
-      setOpen(false);
-    }
-  }, [state]);
+  // Referme le formulaire quand l'action serveur aboutit ; il se
+  // remonte vierge à la prochaine ouverture.
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
+    if (state?.ok) setOpen(false);
+  }
 
   if (!open) {
     return (
@@ -33,7 +33,6 @@ export function ObjectiveForm({ athleteId }: { athleteId: string }) {
 
   return (
     <form
-      ref={formRef}
       action={action}
       className="space-y-3 rounded-2xl border border-line bg-card p-4"
     >

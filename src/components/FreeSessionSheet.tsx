@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { addFreeSession } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
@@ -15,12 +15,15 @@ export function FreeSessionSheet() {
   const [rpe, setRpe] = useState<number | null>(null);
   const [state, action] = useActionState(addFreeSession, null);
 
-  useEffect(() => {
+  // Referme le formulaire quand l'action serveur aboutit.
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
     if (state?.ok) {
       setOpen(false);
       setRpe(null);
     }
-  }, [state]);
+  }
 
   if (!open) {
     return (
