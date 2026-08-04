@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { completeSession, missSession } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
@@ -19,12 +19,16 @@ export function SessionActions({
   const [rpe, setRpe] = useState<number | null>(null);
   const [state, action] = useActionState(completeSession, null);
 
-  useEffect(() => {
+  // Referme le formulaire quand l'action serveur aboutit (ajustement
+  // d'état pendant le rendu, pattern React recommandé).
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
     if (state?.ok) {
       setOpen(false);
       setRpe(null);
     }
-  }, [state]);
+  }
 
   if (!open) {
     return (
