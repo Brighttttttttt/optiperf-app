@@ -15,6 +15,7 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 ## Architecture
 
 - Next.js 16 App Router + Supabase (Postgres, Auth, Realtime, RLS). Le schéma et les politiques RLS vivent dans `supabase/migrations/` — toute évolution de schéma = nouveau fichier de migration numéroté, appliqué dans l'éditeur SQL Supabase.
+- `src/lib/supabase/middleware.ts` est fragile par nature : ne rien insérer entre `createServerClient` et `getUser()`, et **toute réponse de redirection doit propager les cookies** de `supabaseResponse` (sinon la rotation du jeton se perd → boucle de redirections, visible surtout sur Safari).
 - `src/proxy.ts` protège les routes ; clients Supabase dans `src/lib/supabase/` (browser, server, middleware).
 - Métriques d'entraînement (charge session-RPE de Foster, état ACWR) : fonctions pures dans `src/lib/metrics.ts`, couvertes par les tests — les modifier avec leurs tests.
 - Dates : toujours passer par `src/lib/dates.ts` — le fuseau Europe/Paris y est forcé car Vercel tourne en UTC. Ne jamais formater une date « à la main » côté serveur.
