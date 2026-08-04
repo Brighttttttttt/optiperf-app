@@ -1,8 +1,12 @@
 # Optiperf
 
+[![CI](https://github.com/Brighttttttttt/optiperf-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Brighttttttttt/optiperf-app/actions/workflows/ci.yml)
+
 Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** — planification de séances, saisie du réalisé (RPE, durée, analyse), métriques de charge, messagerie temps réel et notifications. Une seule app : l'interface s'adapte au rôle du compte connecté.
 
 **Stack** : Next.js (App Router) · TypeScript · Tailwind CSS v4 · Supabase (Postgres, Auth, Realtime, RLS) · Vercel
+
+**Démo en production** : https://optiperf-app.vercel.app
 
 ## Mise en route
 
@@ -55,6 +59,21 @@ Crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de pass
 3. Dans **Environment Variables**, ajoute `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (⚠️ pas la clé secrète).
 4. **Deploy** — l'app est en ligne et partageable.
 
+## Qualité et workflow
+
+Le projet suit le **GitHub Flow** : jamais de commit direct sur `master`. Branche → pull request → CI verte → merge (squash). La protection de branche impose une PR et le passage de la CI ; Vercel déploie une préversion par PR et la production au merge.
+
+La CI (GitHub Actions) enchaîne : lint, typecheck, tests unitaires, build, tests e2e. En local :
+
+```bash
+npm run lint        # ESLint
+npm run typecheck   # types de routes + tsc
+npm test            # tests unitaires (Vitest) — métriques, dates, RPE
+npm run test:e2e    # e2e de fumée (Playwright, viewport mobile) — build requis avant
+```
+
+Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
+
 ## Fonctionnement
 
 - **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique), planification de séances, messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
@@ -68,8 +87,10 @@ Crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de pass
 supabase/migrations/   Schéma SQL (tables, RLS, triggers, RPC)
 scripts/seed.mjs       Données de démo
 src/proxy.ts           Protection des routes (session Supabase)
-src/lib/               Clients Supabase, métriques, types, dates
+src/lib/               Clients Supabase, métriques, types, dates (+ tests unitaires)
 src/app/(auth)/        Connexion / inscription
 src/app/(app)/         Pages authentifiées (dashboard, séances, messages…)
 src/components/        UI (rampe RPE, cartes athlètes, fil de discussion…)
+e2e/                   Tests e2e Playwright
+.github/               CI (workflows) et Dependabot
 ```
