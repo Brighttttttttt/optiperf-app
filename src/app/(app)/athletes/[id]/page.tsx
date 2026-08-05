@@ -5,17 +5,13 @@ import { Card, EmptyState, PageHeader, StatTile, StatusBadge } from "@/component
 import { SessionRow } from "@/components/SessionRow";
 import { ObjectiveForm } from "@/components/ObjectiveForm";
 import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
+import { WeekPlanner } from "@/components/WeekPlanner";
 import { IconChat, IconPlus } from "@/components/Icons";
-import { deleteObjective, deleteSession } from "@/app/(app)/actions";
+import { deleteObjective } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
-import { addDays, formatDayRelative, formatDuration, toISODate } from "@/lib/dates";
+import { addDays, formatDuration, toISODate } from "@/lib/dates";
 import { btnGhost, btnPrimary } from "@/lib/styles";
-import {
-  sessionTypeLabel,
-  type Objective,
-  type Profile,
-  type TrainingSession,
-} from "@/lib/types";
+import type { Objective, Profile, TrainingSession } from "@/lib/types";
 
 export default async function AthletePage({
   params,
@@ -41,8 +37,9 @@ export default async function AthletePage({
       .from("sessions")
       .select("*")
       .eq("athlete_id", id)
-      .gte("date", toISODate(addDays(now, -27)))
-      .lte("date", toISODate(addDays(now, 14)))
+      // Fenêtre large : la vue semaine navigue ensuite sans aller-retour.
+      .gte("date", toISODate(addDays(now, -56)))
+      .lte("date", toISODate(addDays(now, 56)))
       .order("date"),
     supabase
       .from("objectives")
@@ -148,55 +145,14 @@ export default async function AthletePage({
               Planifier
             </Link>
           </div>
-          {upcoming.length === 0 ? (
-            <Card>
-              <EmptyState
-                title="Rien de planifié"
-                hint={`Planifie la prochaine séance de ${athlete.full_name.split(" ")[0]}.`}
-              />
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {upcoming.map((s) => (
-                <Card key={s.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-display text-[13px] font-semibold uppercase tracking-[0.14em] text-pine">
-                      {formatDayRelative(s.date)}
-                    </p>
-                    <p className="font-semibold truncate">{s.title}</p>
-                    <p className="text-[13px] text-ink-soft">
-                      {sessionTypeLabel(s.type)}
-                      {s.duration_planned_min
-                        ? ` · ${formatDuration(s.duration_planned_min)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-end gap-1.5">
-                    <Link
-                      href={`/seances/${s.id}`}
-                      className="text-[13px] font-semibold text-pine"
-                    >
-                      Modifier
-                    </Link>
-                    <Link
-                      href={`/planifier?depuis=${s.id}&athlete=${athlete.id}`}
-                      className="text-[13px] font-semibold text-pine"
-                    >
-                      Dupliquer
-                    </Link>
-                    <form action={deleteSession}>
-                      <input type="hidden" name="session_id" value={s.id} />
-                      <button
-                        type="submit"
-                        className="text-[13px] font-semibold text-ink-soft hover:text-rpe-max"
-                      >
-                        Annuler
-                      </button>
-                    </form>
-                  </div>
-                </Card>
-              ))}
-            </div>
+          <Card className="p-3">
+            <WeekPlanner athleteId={athlete.id} sessions={sessions} />
+          </Card>
+          {upcoming.length === 0 && (
+            <p className="mt-2 text-center text-[13px] text-ink-soft">
+              Rien de planifié pour {athlete.full_name.split(" ")[0]} dans les
+              jours à venir.
+            </p>
           )}
         </section>
 

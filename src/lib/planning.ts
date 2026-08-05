@@ -38,6 +38,53 @@ export function planningCalendar(weeks = 3, now = new Date()): CalendarDay[] {
   return days;
 }
 
+/** Lundi de la semaine contenant `date`. */
+export function startOfWeek(date: Date): Date {
+  return addDays(date, -((date.getDay() + 6) % 7));
+}
+
+export type WeekDay = {
+  iso: string;
+  /** "lun.", "mar."… */
+  label: string;
+  dayOfMonth: number;
+  isToday: boolean;
+  isPast: boolean;
+};
+
+/** Les 7 jours de la semaine commençant au lundi donné. */
+export function weekDays(monday: Date, now = new Date()): WeekDay[] {
+  const today = toISODate(now);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(monday, i);
+    const iso = toISODate(date);
+    return {
+      iso,
+      label: date
+        .toLocaleDateString("fr-FR", { weekday: "short" })
+        .replace(".", ""),
+      dayOfMonth: date.getDate(),
+      isToday: iso === today,
+      isPast: iso < today,
+    };
+  });
+}
+
+/** "Semaine du 3 au 9 août" — entête de la vue semaine. */
+export function weekLabel(monday: Date): string {
+  const sunday = addDays(monday, 6);
+  const sameMonth = monday.getMonth() === sunday.getMonth();
+  const start = monday.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    ...(sameMonth ? {} : { month: "short" }),
+  });
+  const end = sunday.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+  });
+  return `Semaine du ${start} au ${end}`;
+}
+
 /** "3 séances" / "1 séance" — accord automatique. */
 export function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count > 1 ? plural : singular}`;
