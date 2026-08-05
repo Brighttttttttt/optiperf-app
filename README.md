@@ -18,6 +18,7 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
    - `002_hardening.sql` — limites de longueur, séparation prescription/compte rendu, suppression de compte
    - `003_session_templates.sql` — modèles de séances réutilisables
    - `004_codes_et_debit.sql` — codes d'invitation à 10 caractères, limite de débit sur les messages
+   - `005_rappel_planification.sql` — rappel hebdomadaire au coach (nécessite l'extension `pg_cron`)
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
@@ -91,6 +92,7 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 - **Installable** : depuis Safari ou Chrome, « Ajouter à l'écran d'accueil » pose l'icône Optiperf sur le téléphone ; l'app s'ouvre alors en plein écran, sans barre d'adresse.
 - **Planification groupée** : un écran unique où le coach décrit la séance une fois, coche plusieurs athlètes et plusieurs dates, et crée tout en un envoi. Les séances récurrentes se gardent en **modèles** réutilisables ; une séance déjà planifiée se **duplique** en un tap.
 - **Athlète** : séances à venir, saisie du réalisé avec la rampe RPE 1–10, séances libres, historique, messagerie avec son coach.
+- **Rappel du dimanche** : chaque dimanche soir, le coach reçoit une notification nommant les athlètes sans séance prévue pour la semaine qui commence — et rien du tout si tout est planifié. La tâche vit dans la base (`pg_cron`), pas côté hébergeur : aucune clé secrète à déployer, aucune URL à protéger.
 - **Évolution** : charge et volume semaine par semaine sur 12 semaines, avec la moyenne des 4 dernières en repère — une barre nettement au-dessus signale une montée de charge trop rapide. Visible par le coach sur la fiche athlète, et par l'athlète dans son historique.
 - **Métriques** ([`src/lib/metrics.ts`](src/lib/metrics.ts)) : charge = RPE × durée (session-RPE, Foster) ; état de forme = ratio charge aiguë (7 j) / chronique (28 j).
 - **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés. En-têtes HTTP durcis (CSP, anti-clickjacking, HSTS) définis dans `next.config.ts`.

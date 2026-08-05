@@ -9,7 +9,7 @@ import { btnGhost } from "@/lib/styles";
 import type { AppNotification } from "@/lib/types";
 
 function typeIcon(type: string) {
-  if (type === "session_planned") return IconCalendar;
+  if (type === "session_planned" || type === "week_unplanned") return IconCalendar;
   if (type === "session_completed") return IconPulse;
   return IconBell;
 }
