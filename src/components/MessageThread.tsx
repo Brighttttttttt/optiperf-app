@@ -94,7 +94,8 @@ export function MessageThread({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-surface">
+    // Recouvre la page entière : il porte donc lui-même la zone sûre du haut.
+    <div className="fixed inset-0 z-40 bg-surface pt-[env(safe-area-inset-top)]">
       <div className="mx-auto h-full w-full max-w-md flex flex-col">
         <header className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line bg-card">
           <Link

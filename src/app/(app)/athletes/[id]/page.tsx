@@ -173,6 +173,12 @@ export default async function AthletePage({
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
                     <Link
+                      href={`/seances/${s.id}`}
+                      className="text-[13px] font-semibold text-pine"
+                    >
+                      Modifier
+                    </Link>
+                    <Link
                       href={`/planifier?depuis=${s.id}&athlete=${athlete.id}`}
                       className="text-[13px] font-semibold text-pine"
                     >

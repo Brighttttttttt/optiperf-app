@@ -22,6 +22,7 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
   3. un compte authentifié **sans ligne dans `profiles`** doit être déconnecté, sinon le layout `(app)` (→ `/login`) et le proxy (→ `/`) se renvoient la balle à l'infini.
 - `src/proxy.ts` protège les routes ; clients Supabase dans `src/lib/supabase/` (browser, server, middleware).
 - Métriques d'entraînement (charge session-RPE de Foster, état ACWR) : fonctions pures dans `src/lib/metrics.ts`, couvertes par les tests — les modifier avec leurs tests.
+- L'app est installable sur l'écran d'accueil : `src/app/manifest.ts`, icônes générées par `ImageResponse` (`icon.tsx`, `apple-icon.tsx`), métadonnées `appleWebApp` dans le layout. Ces routes **doivent rester hors du matcher du proxy** (`src/proxy.ts`) : le système d'exploitation les récupère sans cookie, et les protéger casserait l'installation. Vérifié par `e2e/installation.spec.ts` et le test de fumée.
 - Planification : un seul écran, `/planifier` (athlètes × dates en une fois), alimenté par `src/lib/planning.ts` (grille de dates, récapitulatif) et les modèles de `session_templates`. Il n'existe plus de formulaire par athlète — toute nouvelle entrée de planification doit pointer vers `/planifier`, éventuellement avec `?athlete=` ou `?depuis=`.
 - Dates : toujours passer par `src/lib/dates.ts` — le fuseau Europe/Paris y est forcé car Vercel tourne en UTC. Ne jamais formater une date « à la main » côté serveur.
 - Mutations : actions serveur dans `src/app/(auth)/actions.ts` et `src/app/(app)/actions.ts`.
