@@ -28,19 +28,25 @@ for (const [header, pattern] of Object.entries(REQUIRED_HEADERS)) {
   check(`en-tête ${header}`, pattern.test(value), value || "absent");
 }
 
-// 2. Les pages publiques acceptent les POST : c'est par là que passent les
-//    server actions de connexion et d'inscription. Un 405 signifie que le
-//    CDN sert la page statique au lieu de router vers la fonction.
+// 2. Les server actions des pages publiques (connexion, inscription)
+//    atteignent bien l'application. Le navigateur les envoie avec l'en-tête
+//    Next-Action ; c'est lui qui fait router la requête vers la fonction
+//    plutôt que vers la page prérendue du CDN. Un identifiant d'action bidon
+//    doit donner un 4xx applicatif — un 405 signalerait que la requête n'a
+//    jamais quitté le CDN, donc une connexion cassée en production.
+//    (Un POST sans cet en-tête répond 405 : c'est le comportement normal
+//    de Vercel pour une page prérendue, pas une anomalie.)
 for (const path of ["/login", "/signup"]) {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
+    headers: { "Next-Action": "smoke-test-invalid-action-id" },
     body: new URLSearchParams({ smoke: "1" }),
     redirect: "manual",
   });
   check(
-    `POST ${path} atteint l'application`,
+    `les server actions de ${path} atteignent l'application`,
     res.status !== 405,
-    `reçu ${res.status}${res.status === 405 ? " — page servie par le CDN" : ""}`
+    `reçu ${res.status} — la requête n'a pas dépassé le CDN`
   );
 }
 
