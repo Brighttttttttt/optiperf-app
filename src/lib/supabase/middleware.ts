@@ -30,11 +30,27 @@ export async function updateSession(request: NextRequest) {
   // Ne rien insérer entre createServerClient et getUser :
   // getUser() rafraîchit le jeton et synchronise les cookies.
   const {
-    data: { user },
+    data: { user: authUser },
   } = await supabase.auth.getUser();
+  let user = authUser;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
+
+  // Un compte authentifié sans profil (créé hors app, ex. via le dashboard
+  // Supabase avant la migration 001) ferait boucler le layout (→ /login)
+  // et le proxy (→ /) à l'infini : on le déconnecte proprement.
+  if (user && isPublic) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile) {
+      await supabase.auth.signOut();
+      user = null;
+    }
+  }
 
   const destination = !user && !isPublic ? "/login" : user && isPublic ? "/" : null;
   if (destination) {
@@ -47,6 +63,15 @@ export async function updateSession(request: NextRequest) {
     // rotation) et boucle entre / et /login — « trop de redirections ».
     for (const cookie of supabaseResponse.cookies.getAll()) {
       redirect.cookies.set(cookie);
+    }
+    // Auto-guérison : une session invalide laisse parfois des cookies
+    // d'auth résiduels (voire corrompus) — on les purge au passage.
+    if (!user) {
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith("sb-")) {
+          redirect.cookies.set({ name: cookie.name, value: "", path: "/", maxAge: 0 });
+        }
+      }
     }
     return redirect;
   }
