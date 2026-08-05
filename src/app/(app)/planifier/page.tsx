@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { BatchPlanner } from "@/components/BatchPlanner";
 import type { Profile, SessionTemplate, TrainingSession } from "@/lib/types";
@@ -11,16 +12,9 @@ export default async function PlanifierPage({
 }) {
   const { athlete: preselected, depuis, date } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
+  const profile = await getSessionProfile();
   if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single<{ role: string }>();
   if (profile?.role !== "coach") redirect("/");
 
   const { data: links } = await supabase

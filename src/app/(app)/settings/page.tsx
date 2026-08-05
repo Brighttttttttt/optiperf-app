@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
 import { Card, PageHeader } from "@/components/ui";
 import { InviteCode } from "@/components/InviteCode";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
@@ -13,17 +14,9 @@ import type { Profile } from "@/lib/types";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!profile) redirect("/login");
+  const user = await getSessionUser();
+  const profile = await getSessionProfile();
+  if (!user || !profile) redirect("/login");
 
   let templates: SessionTemplate[] = [];
   if (profile.role === "coach") {

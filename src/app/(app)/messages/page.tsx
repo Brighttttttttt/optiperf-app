@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatTimestamp } from "@/lib/dates";
 import { initials } from "@/lib/initials";
@@ -8,17 +9,9 @@ import type { Message, Profile } from "@/lib/types";
 
 export default async function MessagesPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!profile) redirect("/login");
+  const user = await getSessionUser();
+  const profile = await getSessionProfile();
+  if (!user || !profile) redirect("/login");
 
   // Interlocuteurs possibles : ses athlètes (coach) ou son coach (athlète).
   let partners: Profile[] = [];
