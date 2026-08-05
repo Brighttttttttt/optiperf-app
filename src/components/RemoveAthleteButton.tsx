@@ -32,8 +32,9 @@ export function RemoveAthleteButton({
       <p className="font-semibold">Retirer {athleteName} ?</p>
       <p className="mt-1 text-[13px] text-ink-soft">
         Tu ne verras plus son suivi et vous ne pourrez plus échanger de
-        messages. Son compte et son historique lui restent acquis. Tu pourras
-        le réintégrer avec ton code coach.
+        messages. Rien n&apos;est effacé de son côté : son historique, ses
+        objectifs et les séances que tu lui as déjà planifiées lui restent,
+        y compris celles à venir. Tu pourras le réintégrer avec ton code coach.
       </p>
       <div className="mt-3 flex gap-2">
         <form action={removeAthlete} className="flex-1">

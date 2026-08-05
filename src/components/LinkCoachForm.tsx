@@ -14,10 +14,13 @@ export function LinkCoachForm() {
         <input
           name="code"
           required
+          maxLength={12}
           placeholder="Code coach"
           autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
           aria-label="Code coach"
-          className={`${inputClass} uppercase tracking-[0.2em] font-display`}
+          className={`${inputClass} uppercase tracking-[0.15em] font-display`}
         />
         <SubmitButton className="shrink-0 px-4 py-2.5">Rejoindre</SubmitButton>
       </div>

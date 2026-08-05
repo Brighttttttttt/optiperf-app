@@ -17,6 +17,7 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
    - `001_init.sql` — tables, sécurité (RLS), triggers de notifications, temps réel
    - `002_hardening.sql` — limites de longueur, séparation prescription/compte rendu, suppression de compte
    - `003_session_templates.sql` — modèles de séances réutilisables
+   - `004_codes_et_debit.sql` — codes d'invitation à 10 caractères, limite de débit sur les messages
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.

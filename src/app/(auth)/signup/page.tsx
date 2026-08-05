@@ -90,9 +90,12 @@ export default function SignupPage() {
             <input
               id="invite_code"
               name="invite_code"
-              placeholder="Ex. A3F2C1"
+              maxLength={12}
+              placeholder="Ex. K7RPQ2MXVB"
               autoCapitalize="characters"
-              className={`${inputClass} uppercase tracking-[0.2em] font-display`}
+              autoComplete="off"
+              spellCheck={false}
+              className={`${inputClass} uppercase tracking-[0.15em] font-display`}
             />
             <p className="mt-1.5 text-[12px] text-ink-soft">
               Ton coach te l&apos;a partagé ? Tu peux aussi l&apos;ajouter plus
