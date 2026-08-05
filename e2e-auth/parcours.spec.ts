@@ -46,6 +46,21 @@ test.describe("Coach", () => {
     await expect(page.getByText("coach@example.com")).toBeVisible();
   });
 
+  test("le retour visuel de navigation est en place sans décaler la barre", async ({
+    page,
+  }) => {
+    await seConnecter(page, "coach@example.com");
+
+    const nav = page.locator('nav[aria-label="Navigation principale"]');
+    const traits = nav.locator('a > span[aria-hidden="true"]');
+
+    // Un trait par onglet, toujours rendu : s'il n'apparaissait qu'au clic,
+    // il décalerait la barre au moment même où l'utilisateur attend.
+    await expect(traits).toHaveCount(4);
+    // Et invisible au repos — seule l'opacité change pendant la navigation.
+    await expect(traits.first()).toHaveCSS("opacity", "0");
+  });
+
   test("la fiche athlète affiche l'évolution et la semaine", async ({ page }) => {
     await seConnecter(page, "coach@example.com");
     await page.getByText("Léa Martin").click();
