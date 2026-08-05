@@ -30,6 +30,8 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - Mutations : actions serveur dans `src/app/(auth)/actions.ts` et `src/app/(app)/actions.ts`.
 - Liens d'email (confirmation, mot de passe) : l'inscription passe `emailRedirectTo` calculé depuis l'origine servie. `src/app/auth/callback/route.ts` traite les formes lisibles côté serveur (`?code=`, `?token_hash=`), puis relaie vers `src/app/auth/finaliser/page.tsx` pour le flux implicite, où les jetons arrivent dans le **fragment** (`#access_token=…`) que le navigateur n'envoie jamais au serveur. Tout `/auth/*` est public dans le proxy, sinon la confirmation serait interrompue avant de s'exécuter.
 
+- **Région d'exécution** : `vercel.json` fixe `cdg1` (Paris), à côté de la base Supabase. Sans cela, Vercel exécute les fonctions à Washington et chaque requête traverse l'Atlantique — le dashboard passait de 630 ms à 1 500 ms. Ne pas retirer ce fichier, et vérifier `x-vercel-id` (attendu : `cdg1::cdg1::…`) si des lenteurs réapparaissent.
+- L'utilisateur et son profil se lisent via `getSessionUser` / `getSessionProfile` (`src/lib/supabase/session.ts`), mémorisés par `cache()` : ne jamais rappeler `supabase.auth.getUser()` dans une page, la mise en page l'a déjà fait.
 - Tâches de fond : elles vivent dans la base via `pg_cron` (migration 005), pas dans un cron d'hébergeur — cela évite d'y déployer la clé secrète et d'exposer une URL à protéger. Le planificateur tourne en UTC : toute tâche à heure locale fixe se déclenche sur les deux heures UTC possibles et vérifie l'heure de Paris à l'intérieur de la fonction.
 
 ## Workflow
