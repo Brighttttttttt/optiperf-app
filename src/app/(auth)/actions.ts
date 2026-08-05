@@ -1,7 +1,16 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+
+/** Origine réellement servie, pour que les liens d'email y reviennent. */
+async function currentOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export type AuthState = { error?: string; info?: string } | null;
 
@@ -43,7 +52,12 @@ export async function signup(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, role } },
+    options: {
+      data: { full_name: fullName, role },
+      // Le lien de confirmation revient sur l'origine servie (production
+      // ou préversion), et non sur la Site URL fixe du projet Supabase.
+      emailRedirectTo: `${await currentOrigin()}/auth/callback`,
+    },
   });
 
   if (error) {
