@@ -67,13 +67,19 @@ test.describe("Coach", () => {
     await page.getByRole("link", { name: "Planifier" }).first().click();
     await page.getByLabel("Titre").fill(titre);
 
-    // Un athlète, un jour : le récapitulatif doit suivre.
-    await page.getByRole("button", { name: /^Léa Martin/ }).click();
-    const demain = new Date(Date.now() + 86400000);
+    // Le bouton d'un athlète porte aussi ses initiales : on vise le texte
+    // contenu, pas le nom accessible complet.
     await page
-      .getByRole("button", { name: new RegExp(`^${demain.getDate()}$`) })
-      .first()
+      .getByRole("button")
+      .filter({ hasText: "Léa Martin" })
       .click();
+
+    // Les jours de la grille portent leur date en repère accessible.
+    const demain = new Date(Date.now() + 86400000).toLocaleDateString("en-CA", {
+      timeZone: "Europe/Paris",
+    });
+    await page.getByRole("button", { name: demain, exact: true }).click();
+
     await page.getByRole("button", { name: /Planifier 1 séance/ }).click();
 
     await expect(page.getByText(/1 séance planifiée/)).toBeVisible();
