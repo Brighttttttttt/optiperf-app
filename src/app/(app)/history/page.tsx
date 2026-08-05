@@ -3,6 +3,9 @@ import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { SessionRow } from "@/components/SessionRow";
+import { TrendCharts } from "@/components/TrendCharts";
+import { weeklySeries } from "@/lib/metrics";
+import { addDays, toISODate } from "@/lib/dates";
 import type { TrainingSession } from "@/lib/types";
 
 function monthLabel(iso: string): string {
@@ -19,14 +22,28 @@ export default async function HistoryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("athlete_id", user.id)
-    .in("status", ["completed", "missed"])
-    .order("date", { ascending: false })
-    .limit(120);
-  const sessions = (data ?? []) as TrainingSession[];
+  const now = new Date();
+
+  const [historyRes, trendRes] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("*")
+      .eq("athlete_id", user.id)
+      .in("status", ["completed", "missed"])
+      .order("date", { ascending: false })
+      .limit(120),
+    // Fenêtre dédiée aux courbes : 12 semaines, tous statuts confondus, pour
+    // pouvoir comparer le réalisé au prévu.
+    supabase
+      .from("sessions")
+      .select("*")
+      .eq("athlete_id", user.id)
+      .gte("date", toISODate(addDays(now, -84)))
+      .order("date"),
+  ]);
+
+  const sessions = (historyRes.data ?? []) as TrainingSession[];
+  const trend = (trendRes.data ?? []) as TrainingSession[];
 
   // Regroupe par mois pour la lecture chronologique.
   const groups: { label: string; sessions: TrainingSession[] }[] = [];
@@ -44,6 +61,12 @@ export default async function HistoryPage() {
         title="Historique"
       />
       <div className="px-5 space-y-4">
+        {trend.length > 0 && (
+          <Card className="p-4">
+            <TrendCharts points={weeklySeries(trend, 12, now)} />
+          </Card>
+        )}
+
         {groups.length === 0 ? (
           <Card>
             <EmptyState

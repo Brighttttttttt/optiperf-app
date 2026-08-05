@@ -8,7 +8,8 @@ import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
 import { WeekPlanner } from "@/components/WeekPlanner";
 import { IconChat, IconPlus } from "@/components/Icons";
 import { deleteObjective } from "@/app/(app)/actions";
-import { computeMetrics } from "@/lib/metrics";
+import { TrendCharts } from "@/components/TrendCharts";
+import { computeMetrics, weeklySeries } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
 import { btnGhost, btnPrimary } from "@/lib/styles";
 import type { Objective, Profile, TrainingSession } from "@/lib/types";
@@ -37,8 +38,9 @@ export default async function AthletePage({
       .from("sessions")
       .select("*")
       .eq("athlete_id", id)
-      // Fenêtre large : la vue semaine navigue ensuite sans aller-retour.
-      .gte("date", toISODate(addDays(now, -56)))
+      // Fenêtre large : elle sert à la fois à la navigation entre semaines
+      // sans aller-retour et aux courbes sur 12 semaines.
+      .gte("date", toISODate(addDays(now, -84)))
       .lte("date", toISODate(addDays(now, 56)))
       .order("date"),
     supabase
@@ -98,6 +100,15 @@ export default async function AthletePage({
             <StatTile value={String(Math.round(metrics.weeklyLoad))} label="Charge" />
           </div>
         </Card>
+
+        <section>
+          <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">
+            Évolution
+          </h2>
+          <Card className="p-4">
+            <TrendCharts points={weeklySeries(sessions, 12, now)} />
+          </Card>
+        </section>
 
         <section>
           <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">

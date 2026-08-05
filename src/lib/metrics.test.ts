@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeMetrics, sessionLoad } from "./metrics";
+import { computeMetrics, sessionLoad, weeklySeries } from "./metrics";
 import type { TrainingSession } from "./types";
 
 // 10 h heure de Paris un mercredi : les fenêtres 7 j / 28 j sont stables.
@@ -42,6 +42,87 @@ describe("sessionLoad", () => {
   it("vaut zéro pour une séance non complétée", () => {
     expect(sessionLoad(session({ status: "planned" }))).toBe(0);
     expect(sessionLoad(session({ status: "missed" }))).toBe(0);
+  });
+});
+
+describe("weeklySeries", () => {
+  it("rend les semaines demandées, de la plus ancienne à la semaine en cours", () => {
+    const series = weeklySeries([], 4, NOW);
+    expect(series.map((w) => w.weekStart)).toEqual([
+      "2026-07-13",
+      "2026-07-20",
+      "2026-07-27",
+      "2026-08-03",
+    ]);
+  });
+
+  it("agrège charge, volume et RPE dans la bonne semaine", () => {
+    const series = weeklySeries(
+      [
+        // Semaine en cours (lundi 3 août)
+        session({ date: "2026-08-04", rpe: 6, duration_actual_min: 60 }),
+        session({ date: "2026-08-05", rpe: 8, duration_actual_min: 30 }),
+        // Semaine précédente
+        session({ date: "2026-07-30", rpe: 5, duration_actual_min: 40 }),
+      ],
+      2,
+      NOW
+    );
+    const [previous, current] = series;
+
+    expect(current.load).toBe(6 * 60 + 8 * 30);
+    expect(current.volumeActualMin).toBe(90);
+    expect(current.avgRpe).toBe(7);
+    expect(current.completed).toBe(2);
+    expect(previous.load).toBe(200);
+  });
+
+  it("sépare le volume prévu du volume réalisé", () => {
+    const [week] = weeklySeries(
+      [
+        session({
+          date: "2026-08-04",
+          status: "missed",
+          duration_planned_min: 90,
+          duration_actual_min: null,
+          rpe: null,
+        }),
+        session({ date: "2026-08-05", duration_planned_min: 60, duration_actual_min: 55 }),
+        // Séance libre : réalisée, mais jamais comptée comme prévue.
+        session({ date: "2026-08-05", coach_id: null, duration_actual_min: 20 }),
+      ],
+      1,
+      NOW
+    );
+    expect(week.volumePlannedMin).toBe(150);
+    expect(week.volumeActualMin).toBe(75);
+    expect(week.planned).toBe(2);
+    expect(week.completed).toBe(2);
+  });
+
+  it("lisse la charge chronique sur quatre semaines glissantes", () => {
+    const series = weeklySeries(
+      [
+        session({ date: "2026-07-14", rpe: 10, duration_actual_min: 100 }), // 1000
+        session({ date: "2026-08-04", rpe: 10, duration_actual_min: 20 }), // 200
+      ],
+      4,
+      NOW
+    );
+    // Semaine en cours : (1000 + 0 + 0 + 200) / 4
+    expect(series[3].chronicLoad).toBe(300);
+    // Première semaine de la fenêtre : elle n'a qu'elle-même comme historique.
+    expect(series[0].chronicLoad).toBe(1000);
+  });
+
+  it("laisse le RPE moyen vide sur une semaine sans séance réalisée", () => {
+    const [week] = weeklySeries(
+      [session({ date: "2026-08-04", status: "planned" })],
+      1,
+      NOW
+    );
+    expect(week.avgRpe).toBeNull();
+    expect(week.load).toBe(0);
   });
 });
 
