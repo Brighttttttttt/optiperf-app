@@ -7,9 +7,9 @@ import type { Profile, SessionTemplate, TrainingSession } from "@/lib/types";
 export default async function PlanifierPage({
   searchParams,
 }: {
-  searchParams: Promise<{ athlete?: string; depuis?: string }>;
+  searchParams: Promise<{ athlete?: string; depuis?: string; date?: string }>;
 }) {
-  const { athlete: preselected, depuis } = await searchParams;
+  const { athlete: preselected, depuis, date } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -87,6 +87,7 @@ export default async function PlanifierPage({
           athletes={(athletesRes.data ?? []) as Profile[]}
           templates={(templatesRes.data ?? []) as SessionTemplate[]}
           preselectedAthleteId={preselected}
+          preselectedDate={date}
           prefill={prefill}
         />
       </div>

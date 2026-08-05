@@ -14,11 +14,13 @@ export function BatchPlanner({
   athletes,
   templates,
   preselectedAthleteId,
+  preselectedDate,
   prefill,
 }: {
   athletes: Profile[];
   templates: SessionTemplate[];
   preselectedAthleteId?: string;
+  preselectedDate?: string;
   prefill?: { title: string; type: string; description: string; duration: string };
 }) {
   const [state, action] = useActionState(planBatch, null);
@@ -27,7 +29,12 @@ export function BatchPlanner({
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>(
     preselectedAthleteId ? [preselectedAthleteId] : []
   );
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  // Arrivée depuis un jour du calendrier : cette date est déjà cochée.
+  const [selectedDates, setSelectedDates] = useState<string[]>(
+    preselectedDate && days.some((d) => d.iso === preselectedDate)
+      ? [preselectedDate]
+      : []
+  );
   const [content, setContent] = useState({
     title: prefill?.title ?? "",
     type: prefill?.type ?? "endurance",
