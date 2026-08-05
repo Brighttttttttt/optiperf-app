@@ -40,9 +40,18 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 
 GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche → PR → CI verte (lint, typecheck, unitaires, build, e2e) → merge squash. Vercel déploie une préversion par PR et la prod au merge.
 
+Conventions détaillées dans `CONTRIBUTING.md`, vue d'ensemble dans `docs/architecture.md` — les deux sont à jour et font autorité sur ce point. L'essentiel :
+
+- Le merge est un **squash** : le message du commit final est le **titre + la description de la PR**. C'est là que se joue la lisibilité de l'historique, pas dans les commits intermédiaires.
+- Titre : impératif ou groupe nominal en français, sans préfixe technique (`feat:`, `fix:`), 70 caractères max.
+- Description : le *quoi* se lit dans le diff, elle explique le **pourquoi** — avec la mesure ou le fait observé qui a motivé le changement, et ce qui a été écarté.
+- Modèles d'issues et de PR dans `.github/` : les remplir plutôt que les vider.
+- **Une migration ajoutée en PR n'est pas appliquée en production** : la CI la valide sur une base neuve, mais la pose reste manuelle dans le SQL Editor Supabase. Le signaler explicitement en fin de PR.
+
 ## Sécurité
 
 - RLS sur toutes les tables ; les tests d'isolation comptent.
+- **Deux verrous, pas un** : les droits SQL (migration 006) décident *quelles tables* un rôle peut ouvrir, la RLS décide *quelles lignes* il y voit. Supabase accorde automatiquement des droits à `anon` et `authenticated` sur toute table nouvellement créée — une nouvelle table doit donc déclarer les siens à la manière de 006, sinon le visiteur non connecté récupère un accès que seule la RLS retient.
 - Séparation stricte prescription / compte rendu sur `sessions`, imposée par le trigger `enforce_session_ownership` (migration 002) : le coach ne modifie ni RPE, ni durée réelle, ni commentaire, ni statut ; l'athlète ne modifie pas la consigne d'une séance prescrite. Toute nouvelle colonne de `sessions` doit être classée d'un côté ou de l'autre dans ce trigger.
 - Codes d'invitation : 10 caractères tirés d'un alphabet sans signes confondables (`generate_invite_code`, migration 004). Ils se lisent et se retapent à la main — ne pas rallonger sans repenser la saisie.
 - Un compte ne peut pas envoyer plus de 20 messages par minute (trigger `enforce_message_rate_limit`). L'erreur remonte jusqu'au fil de discussion : toute nouvelle voie d'écriture doit afficher l'échec plutôt que l'avaler.

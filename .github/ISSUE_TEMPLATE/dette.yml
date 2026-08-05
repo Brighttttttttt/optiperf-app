@@ -1,0 +1,35 @@
+name: Dette ou entretien
+description: Fragilité connue, documentation à jour, mise à niveau, test manquant
+labels: ["entretien"]
+body:
+  - type: textarea
+    id: sujet
+    attributes:
+      label: De quoi il s'agit
+      placeholder: |
+        La migration 005 déclare v_now en timestamptz alors que l'expression
+        produit un timestamp. Ça marche parce que la base tourne en UTC.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risque
+    attributes:
+      label: Ce qui arrive si on ne fait rien
+      description: >-
+        Une dette sans conséquence décrite ne sera jamais priorisée. Dis en
+        quoi ça peut faire mal, et si ça échouerait bruyamment ou en silence.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgence
+    attributes:
+      label: Urgence
+      options:
+        - À la prochaine occasion — on touche déjà à cette zone
+        - Quand il y aura du temps
+        - À garder en tête, sans action pour l'instant
+      default: 1
+    validations:
+      required: true

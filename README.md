@@ -8,6 +8,11 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 
 **Démo en production** : https://optiperf-app.vercel.app
 
+📐 [Comment le projet est fait](docs/architecture.md) — architecture, workflow et
+rôle de chaque famille de tests, en cinq minutes.
+🤝 [Conventions de travail](CONTRIBUTING.md) — branches, pull requests, issues,
+migrations.
+
 ## Mise en route
 
 ### 1. Créer le projet Supabase
@@ -71,22 +76,24 @@ Crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de pass
 
 ## Qualité et workflow
 
-Le projet suit le **GitHub Flow** : jamais de commit direct sur `master`. Branche → pull request → CI verte → merge (squash). La protection de branche impose une PR et le passage de la CI ; Vercel déploie une préversion par PR et la production au merge.
-
-La CI (GitHub Actions) enchaîne : lint, typecheck, tests unitaires, build, tests e2e. En local :
+Le projet suit le **GitHub Flow** : jamais de commit direct sur `master`. Branche → pull request → CI verte → merge (squash). La protection de branche impose une PR et le passage de la CI ; Vercel déploie une préversion par PR et la production au merge. Conventions détaillées : [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-npm run lint        # ESLint
-npm run typecheck   # types de routes + tsc
-npm test            # tests unitaires (Vitest) — métriques, dates, RPE
+npm run lint          # ESLint
+npm run typecheck     # types de routes + tsc
+npm test              # tests unitaires (Vitest) — métriques, dates, planning, RPE
 npm run test:e2e      # e2e de fumée (Playwright, viewport mobile) — build requis avant
 npm run test:e2e:auth # parcours connectés — nécessite une base Supabase accessible
 npm run smoke         # test de fumée contre la production déployée
+npm run test:prod     # contrôle d'affichage dans un vrai navigateur, contre la production
 ```
 
-Les **parcours connectés** (`e2e-auth/`) sont les seuls tests qui vérifient qu'une page authentifiée affiche réellement son contenu. En intégration continue, ils tournent contre une base Supabase démarrée localement par la CLI, qui applique les migrations du dépôt — ce qui les valide au passage. Pour les lancer sur ta machine, il faut Docker et `supabase start`.
+Cinq familles de tests, chacune voyant ce que les autres ne peuvent pas voir — le détail de ce que chacune attrape est dans [docs/architecture.md](docs/architecture.md#les-tests--cinq-étages-cinq-métiers-différents). En résumé :
 
-Un second workflow rejoue le test de fumée sur l'URL de production après chaque déploiement Vercel : il couvre ce que les tests locaux ne voient pas (routage et cache du CDN).
+- les **parcours connectés** (`e2e-auth/`) sont les seuls à vérifier qu'une page authentifiée **affiche réellement son contenu**. En CI, ils tournent contre une base Supabase démarrée par la CLI, qui applique les migrations du dépôt — ce qui les valide au passage. En local, il faut Docker et `supabase start` ;
+- le **contrôle d'affichage en production** (`e2e-prod/`) est le seul dispositif capable de voir qu'une page répond correctement tout en n'affichant rien.
+
+Deux workflows : la CI à chaque pull request, et un contrôle après chaque déploiement de production (fumée + affichage dans un vrai navigateur), qui couvre ce que les tests locaux ne voient pas.
 
 Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 
@@ -99,18 +106,23 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 - **Rappel du dimanche** : chaque dimanche soir, le coach reçoit une notification nommant les athlètes sans séance prévue pour la semaine qui commence — et rien du tout si tout est planifié. La tâche vit dans la base (`pg_cron`), pas côté hébergeur : aucune clé secrète à déployer, aucune URL à protéger.
 - **Évolution** : charge et volume semaine par semaine sur 12 semaines, avec la moyenne des 4 dernières en repère — une barre nettement au-dessus signale une montée de charge trop rapide. Visible par le coach sur la fiche athlète, et par l'athlète dans son historique.
 - **Métriques** ([`src/lib/metrics.ts`](src/lib/metrics.ts)) : charge = RPE × durée (session-RPE, Foster) ; état de forme = ratio charge aiguë (7 j) / chronique (28 j).
-- **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés. En-têtes HTTP durcis (CSP, anti-clickjacking, HSTS) définis dans `next.config.ts`.
+- **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés. En-têtes HTTP durcis (CSP, anti-clickjacking, HSTS) définis dans [`src/lib/security-headers.ts`](src/lib/security-headers.ts) et posés par le proxy.
 
 ## Structure
 
 ```
-supabase/migrations/   Schéma SQL (tables, RLS, triggers, RPC)
-scripts/seed.mjs       Données de démo
-src/proxy.ts           Protection des routes (session Supabase)
-src/lib/               Clients Supabase, métriques, types, dates (+ tests unitaires)
+supabase/migrations/   Schéma SQL (tables, RLS, triggers, RPC, tâche pg_cron)
+scripts/               Données de démo (seed.mjs) et fumée production (smoke-prod.mjs)
+src/proxy.ts           Protection des routes et en-têtes de sécurité
+src/lib/               Clients Supabase, métriques, planning, types, dates (+ tests unitaires)
 src/app/(auth)/        Connexion / inscription
 src/app/(app)/         Pages authentifiées (dashboard, séances, messages…)
+src/app/auth/          Retour des liens d'email (confirmation, mot de passe)
 src/components/        UI (rampe RPE, cartes athlètes, fil de discussion…)
-e2e/                   Tests e2e Playwright
-.github/               CI (workflows) et Dependabot
+e2e/                   Tests de fumée, sans base
+e2e-auth/              Parcours connectés contre une vraie base
+e2e-prod/              Contrôle d'affichage contre la production déployée
+docs/                  Vue d'ensemble du projet
+.github/               CI, contrôle après déploiement, modèles d'issues et de PR
+vercel.json            Région d'exécution (cdg1, à côté de la base)
 ```

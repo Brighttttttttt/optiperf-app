@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Comment le projet est fait
+    url: https://github.com/Brighttttttttt/optiperf-app/blob/master/docs/architecture.md
+    about: Architecture, workflow et rôle de chaque famille de tests.
+  - name: Conventions de travail
+    url: https://github.com/Brighttttttttt/optiperf-app/blob/master/CONTRIBUTING.md
+    about: Branches, titres, descriptions de PR, migrations SQL.
