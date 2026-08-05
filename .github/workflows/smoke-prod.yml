@@ -1,0 +1,28 @@
+name: Smoke production
+
+# Se déclenche quand Vercel signale un déploiement réussi : vérifie l'URL
+# réellement servie, ce que la CI locale ne peut pas faire (routage et cache
+# du CDN).
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Test de fumée
+        run: node scripts/smoke-prod.mjs "${{ github.event.deployment_status.environment_url || 'https://optiperf-app.vercel.app' }}"

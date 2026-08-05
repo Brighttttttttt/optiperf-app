@@ -10,6 +10,7 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - `npm test` — tests unitaires Vitest (`src/lib/*.test.ts`)
 - `npm run test:e2e` — e2e Playwright (faire `npm run build` avant)
 - `npm run lint` et `npm run typecheck` — exigés par la CI
+- `npm run smoke` — test de fumée contre la production déployée (routage CDN, en-têtes, POST des server actions) ; rejoué automatiquement après chaque déploiement
 - `npm run seed` — données de démo (demande `SUPABASE_SECRET_KEY` dans `.env.local`)
 
 ## Architecture
@@ -33,5 +34,6 @@ GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche
 - RLS sur toutes les tables ; les tests d'isolation comptent.
 - Séparation stricte prescription / compte rendu sur `sessions`, imposée par le trigger `enforce_session_ownership` (migration 002) : le coach ne modifie ni RPE, ni durée réelle, ni commentaire, ni statut ; l'athlète ne modifie pas la consigne d'une séance prescrite. Toute nouvelle colonne de `sessions` doit être classée d'un côté ou de l'autre dans ce trigger.
 - Les limites de longueur sont doublées : contraintes SQL (migration 002) et constante `LIMITS` dans `src/lib/types.ts`, utilisée par les actions serveur et les `maxLength` des formulaires. Garder les deux synchronisées.
-- En-têtes de sécurité (dont la CSP) dans `next.config.ts`, vérifiés par `e2e/headers.spec.ts`. Toute nouvelle origine appelée par le navigateur (analytics, CDN, stockage Supabase…) doit être ajoutée à la directive correspondante, sinon elle sera bloquée en production.
+- En-têtes de sécurité (dont la CSP) dans `src/lib/security-headers.ts`, appliqués par le proxy et vérifiés par `e2e/headers.spec.ts`. Toute nouvelle origine appelée par le navigateur (analytics, CDN, stockage Supabase…) doit être ajoutée à la directive correspondante, sinon elle sera bloquée en production.
+- **Ne jamais déclarer `headers()` dans `next.config.ts`** : cela fait servir les pages prérendues (`/login`, `/signup`) directement par le CDN Vercel, qui répond alors 405 aux POST des server actions — connexion et inscription cassées en production, alors que tout passe en local.
 - `SUPABASE_SECRET_KEY` ne sert qu'aux scripts locaux (seed) — jamais côté client, jamais sur Vercel, jamais commitée (`.env.local` est ignoré par git).
