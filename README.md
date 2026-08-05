@@ -79,7 +79,7 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 - **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique), planification de séances, messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
 - **Athlète** : séances à venir, saisie du réalisé avec la rampe RPE 1–10, séances libres, historique, messagerie avec son coach.
 - **Métriques** ([`src/lib/metrics.ts`](src/lib/metrics.ts)) : charge = RPE × durée (session-RPE, Foster) ; état de forme = ratio charge aiguë (7 j) / chronique (28 j).
-- **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés.
+- **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés. En-têtes HTTP durcis (CSP, anti-clickjacking, HSTS) définis dans `next.config.ts`.
 
 ## Structure
 
