@@ -1,0 +1,43 @@
+name: Évolution
+description: Un manque à combler côté coach ou côté athlète
+labels: ["évolution"]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Le besoin
+      description: >-
+        Le problème vécu, pas la solution. « Le coach ne sait pas qui n'a rien
+        de prévu » plutôt que « ajouter un cron du dimanche ».
+    validations:
+      required: true
+
+  - type: dropdown
+    id: qui
+    attributes:
+      label: Pour qui
+      options:
+        - Le coach
+        - L'athlète
+        - Les deux
+      default: 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: piste
+    attributes:
+      label: Piste envisagée
+      description: Facultatif — si tu as déjà une idée de la forme.
+
+  - type: textarea
+    id: fini
+    attributes:
+      label: Quand est-ce fini ?
+      description: À quoi on reconnaîtra que le besoin est couvert.
+      placeholder: |
+        - Le dimanche soir, le coach reçoit une notification nommant les
+          athlètes sans séance prévue
+        - Aucune notification si tout est planifié
+    validations:
+      required: true
