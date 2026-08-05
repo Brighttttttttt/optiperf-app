@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LIMITS } from "@/lib/types";
+import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -70,6 +71,74 @@ export async function planSession(
 
   revalidatePath("/", "layout");
   redirect(`/athletes/${athleteId}`);
+}
+
+export async function planBatch(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const athleteIds = formData.getAll("athlete_ids").map(String).filter(Boolean);
+  const dates = formData.getAll("dates").map(String).filter(Boolean);
+  if (athleteIds.length === 0) return { error: "Choisis au moins un athlète." };
+  if (dates.length === 0) return { error: "Choisis au moins une date." };
+  if (athleteIds.length * dates.length > MAX_BATCH_SESSIONS) {
+    return {
+      error: `Trop de séances d'un coup (maximum ${MAX_BATCH_SESSIONS}). Réduis le nombre d'athlètes ou de dates.`,
+    };
+  }
+
+  const title = text(formData, "title", LIMITS.title);
+  if (title === null) return tooLong("Le titre", LIMITS.title);
+  if (!title) return { error: "Donne un titre à la séance." };
+
+  const description = optionalText(formData, "description", LIMITS.description);
+  if (description === undefined) return tooLong("Les consignes", LIMITS.description);
+
+  const type = String(formData.get("type") ?? "endurance");
+  const rawDuration = Number(formData.get("duration_planned_min"));
+  const duration =
+    Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : null;
+
+  const rows = athleteIds.flatMap((athlete_id) =>
+    dates.map((date) => ({
+      athlete_id,
+      coach_id: user.id,
+      date,
+      title,
+      type,
+      description,
+      duration_planned_min: duration,
+    }))
+  );
+
+  // La RLS refuse toute ligne visant un athlète hors du groupe du coach.
+  const { error } = await supabase.from("sessions").insert(rows);
+  if (error) {
+    return { error: "Impossible d'enregistrer ces séances. Réessaie." };
+  }
+
+  if (formData.get("save_template") === "on") {
+    await supabase.from("session_templates").insert({
+      coach_id: user.id,
+      title,
+      type,
+      description,
+      duration_planned_min: duration,
+    });
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/?planifiees=${rows.length}`);
+}
+
+export async function deleteTemplate(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = String(formData.get("template_id") ?? "");
+  if (!id) return;
+  await supabase.from("session_templates").delete().eq("id", id);
+  revalidatePath("/", "layout");
 }
 
 export async function completeSession(

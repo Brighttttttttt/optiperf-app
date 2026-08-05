@@ -141,7 +141,7 @@ export default async function AthletePage({
               Planning
             </h2>
             <Link
-              href={`/athletes/${athlete.id}/plan`}
+              href={`/planifier?athlete=${athlete.id}`}
               className={`${btnPrimary} px-3 py-1.5 text-[13px]`}
             >
               <IconPlus className="size-4" />
@@ -171,15 +171,23 @@ export default async function AthletePage({
                         : ""}
                     </p>
                   </div>
-                  <form action={deleteSession}>
-                    <input type="hidden" name="session_id" value={s.id} />
-                    <button
-                      type="submit"
-                      className="text-[13px] font-semibold text-ink-soft hover:text-rpe-max"
+                  <div className="shrink-0 flex flex-col items-end gap-1.5">
+                    <Link
+                      href={`/planifier?depuis=${s.id}&athlete=${athlete.id}`}
+                      className="text-[13px] font-semibold text-pine"
                     >
-                      Annuler
-                    </button>
-                  </form>
+                      Dupliquer
+                    </Link>
+                    <form action={deleteSession}>
+                      <input type="hidden" name="session_id" value={s.id} />
+                      <button
+                        type="submit"
+                        className="text-[13px] font-semibold text-ink-soft hover:text-rpe-max"
+                      >
+                        Annuler
+                      </button>
+                    </form>
+                  </div>
                 </Card>
               ))}
             </div>

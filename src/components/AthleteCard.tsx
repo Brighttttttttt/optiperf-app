@@ -71,7 +71,7 @@ export function AthleteCard({
           </p>
         )}
         <div className="mt-2.5 grid grid-cols-2 gap-2">
-          <Link href={`/athletes/${athlete.id}/plan`} className={btnGhost}>
+          <Link href={`/planifier?athlete=${athlete.id}`} className={btnGhost}>
             Planifier
           </Link>
           <Link href={`/messages/${athlete.id}`} className={btnGhost}>
