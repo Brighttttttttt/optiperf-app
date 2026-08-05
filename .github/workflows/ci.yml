@@ -5,12 +5,6 @@ on:
   push:
     branches: [master]
 
-# Env factice : les e2e de fumée n'appellent jamais Supabase,
-# les visiteurs non connectés sont redirigés vers /login.
-env:
-  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
-
 # Moindre privilège : la CI ne fait que lire le dépôt.
 permissions:
   contents: read
@@ -19,6 +13,10 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+    # Env factice : les tests de fumée n'appellent jamais Supabase.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
     steps:
       - uses: actions/checkout@v7
 
@@ -45,13 +43,80 @@ jobs:
       - name: Installer Chromium (Playwright)
         run: npx playwright install --with-deps chromium
 
-      - name: Tests e2e
+      - name: Tests de fumée
         run: npm run test:e2e
 
       - name: Rapport Playwright en cas d'échec
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-fumee
+          path: playwright-report/
+          retention-days: 7
+
+  # Parcours connectés contre une vraie base : c'est le seul endroit où l'on
+  # vérifie qu'une page authentifiée affiche réellement son contenu.
+  e2e-authentifie:
+    name: E2E authentifiés
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Démarre Postgres, l'authentification et l'API en local, et applique
+      # les migrations du dépôt — ce qui les valide au passage.
+      - name: Démarrer Supabase
+        run: supabase start
+
+      - name: Exposer les identifiants locaux
+        run: |
+          supabase status -o env | sed 's/"//g' > /tmp/supabase.env
+          echo "Clés exposées par la CLI :"
+          cut -d= -f1 /tmp/supabase.env | sed 's/^/  /'
+
+          lire() { grep "^$1=" /tmp/supabase.env | cut -d= -f2-; }
+          # Selon la version de la CLI, les clés sont exposées au nouveau
+          # format (PUBLISHABLE/SECRET) ou à l'ancien (ANON/SERVICE_ROLE).
+          PUB=$(lire PUBLISHABLE_KEY); [ -z "$PUB" ] && PUB=$(lire ANON_KEY)
+          SEC=$(lire SECRET_KEY); [ -z "$SEC" ] && SEC=$(lire SERVICE_ROLE_KEY)
+          API=$(lire API_URL)
+
+          if [ -z "$PUB" ] || [ -z "$SEC" ] || [ -z "$API" ]; then
+            echo "::error::Identifiants Supabase locaux introuvables"; exit 1
+          fi
+          echo "Publique : ${PUB:0:10}… · Secrète : ${SEC:0:10}… · API : $API"
+
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUB" >> $GITHUB_ENV
+          echo "SUPABASE_SECRET_KEY=$SEC" >> $GITHUB_ENV
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Peupler la base de test
+        run: npm run seed
+
+      - name: Build
+        run: npm run build
+
+      - name: Installer Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Parcours connectés
+        run: npm run test:e2e:auth
+
+      - name: Rapport Playwright en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-authentifie
           path: playwright-report/
           retention-days: 7

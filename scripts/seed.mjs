@@ -32,6 +32,24 @@ const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+console.log(
+  `→ Cible : ${url} (clé ${serviceKey.slice(0, 10)}…, ${serviceKey.length} caractères)`
+);
+
+/** Toute erreur doit s'arrêter ici, en disant laquelle : une insertion qui
+ *  échoue en silence produit un jeu de données incomplet et des tests
+ *  incompréhensibles. */
+function verifier(etape, { error } = {}) {
+  if (!error) return;
+  console.error(
+    `\n✘ ${etape} — ${error.message}` +
+      (error.code ? ` [${error.code}]` : "") +
+      (error.details ? `\n   détails : ${error.details}` : "") +
+      (error.hint ? `\n   piste : ${error.hint}` : "")
+  );
+  process.exit(1);
+}
+
 const PASSWORD = "optiperf-demo";
 
 const toISO = (d) =>
@@ -112,20 +130,26 @@ async function main() {
 
   console.log("→ Liaison coach ↔ athlètes…");
   for (const id of athleteIds) {
-    await admin
-      .from("coach_athletes")
-      .upsert({ coach_id: coachId, athlete_id: id }, { onConflict: "athlete_id" });
+    verifier(
+      "liaison coach ↔ athlète",
+      await admin
+        .from("coach_athletes")
+        .upsert({ coach_id: coachId, athlete_id: id }, { onConflict: "athlete_id" })
+    );
   }
 
   console.log("→ Objectifs…");
   const now = new Date();
   for (let i = 0; i < ATHLETES.length; i++) {
     const a = ATHLETES[i];
-    await admin.from("objectives").insert({
-      athlete_id: athleteIds[i],
-      title: a.objective.title,
-      target_date: toISO(addDays(now, a.objective.inDays)),
-    });
+    verifier(
+      "objectifs",
+      await admin.from("objectives").insert({
+        athlete_id: athleteIds[i],
+        title: a.objective.title,
+        target_date: toISO(addDays(now, a.objective.inDays)),
+      })
+    );
   }
 
   console.log("→ Séances (5 semaines passées + semaine à venir)…");
@@ -169,14 +193,13 @@ async function main() {
       }
     }
   }
-  const { error: sessErr } = await admin.from("sessions").insert(sessions);
-  if (sessErr) throw sessErr;
+  verifier("séances", await admin.from("sessions").insert(sessions));
 
   // Les triggers ont généré une notification par insertion : on repart
   // d'une liste courte et crédible.
   console.log("→ Notifications…");
   await admin.from("notifications").delete().in("recipient_id", allIds);
-  await admin.from("notifications").insert([
+  verifier("notifications", await admin.from("notifications").insert([
     {
       recipient_id: coachId,
       type: "session_completed",
@@ -191,16 +214,16 @@ async function main() {
       body: "Ton planning de la semaine est prêt",
       link: "/",
     },
-  ]);
+  ]));
 
   console.log("→ Messages…");
   const t = (minAgo) => new Date(Date.now() - minAgo * 60000).toISOString();
-  await admin.from("messages").insert([
+  verifier("messages", await admin.from("messages").insert([
     { sender_id: coachId, recipient_id: athleteIds[0], content: "Bien récupéré de la sortie longue ?", created_at: t(180), read_at: t(150) },
     { sender_id: athleteIds[0], recipient_id: coachId, content: "Oui nickel ! Un peu de raideur aux mollets mais rien de méchant.", created_at: t(140), read_at: t(120) },
     { sender_id: coachId, recipient_id: athleteIds[0], content: "Parfait. Pense à bien t'hydrater avant la séance de jeudi 💪", created_at: t(60) },
     { sender_id: athleteIds[1], recipient_id: coachId, content: "Je me sens vraiment cramé cette semaine, on peut alléger ?", created_at: t(30) },
-  ]);
+  ]));
 
   console.log("\n✔ Données de démo prêtes. Comptes (mot de passe : " + PASSWORD + ")");
   console.log("   Coach   : coach@example.com");

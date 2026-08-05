@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=fumee",
+    "test:e2e:auth": "playwright test --project=authentifie",
+    "test:prod": "playwright test --project=production",
     "smoke": "node scripts/smoke-prod.mjs",
     "seed": "node scripts/seed.mjs"
   },

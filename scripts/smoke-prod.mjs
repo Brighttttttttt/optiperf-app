@@ -82,6 +82,57 @@ check(
 const root = await fetch(`${BASE}/`, { redirect: "follow" });
 check("GET / se stabilise", root.status === 200, `reçu ${root.status}`);
 
+// 6. Une page connectée affiche vraiment son contenu.
+//    C'est la vérification qui manquait lors de l'incident #44 : l'app
+//    répondait 200 sur toutes les routes tout en restant bloquée sur son
+//    écran d'attente. Les tests locaux ne reproduisent pas ce défaut, qui
+//    ne se manifeste qu'avec la latence réelle : il se constate ici.
+//    Le compte utilisé est celui de démonstration, documenté publiquement.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.log(
+    "ℹ Contrôle connecté ignoré : SUPABASE_URL et SUPABASE_PUBLISHABLE_KEY absents."
+  );
+} else {
+  const auth = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: "coach@example.com",
+      password: "optiperf-demo",
+    }),
+  });
+  const session = await auth.json();
+  check("le compte de démonstration se connecte", !!session.access_token, session.error_description ?? "");
+
+  if (session.access_token) {
+    const ref = new URL(SUPABASE_URL).hostname.split(".")[0];
+    const cookie = `sb-${ref}-auth-token=base64-${Buffer.from(
+      JSON.stringify(session)
+    ).toString("base64")}`;
+
+    const page = await fetch(`${BASE}/`, {
+      headers: { cookie },
+      redirect: "manual",
+    });
+    const html = await page.text();
+
+    check("le dashboard répond 200 une fois connecté", page.status === 200, `reçu ${page.status}`);
+    check(
+      "le dashboard affiche ses athlètes",
+      /Léa Martin|Nino Rossi|Sofia Alves/.test(html),
+      "aucun nom d'athlète dans la page"
+    );
+    check(
+      "le dashboard n'est pas bloqué sur l'écran d'attente",
+      !/Chargement…/.test(html) || /MON GROUPE/i.test(html),
+      "la page ne contient que son écran d'attente"
+    );
+  }
+}
+
 const failed = checks.filter((c) => !c.ok);
 for (const c of checks) {
   console.log(`${c.ok ? "✔" : "✘"} ${c.name}${c.ok ? "" : ` — ${c.detail}`}`);
