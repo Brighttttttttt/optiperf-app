@@ -1,21 +1,11 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/supabase/session";
 import { CoachDashboard } from "@/components/home/CoachDashboard";
 import { AthleteHome } from "@/components/home/AthleteHome";
-import type { Profile } from "@/lib/types";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
+  // Déjà résolu par la mise en page : `cache()` évite un second aller-retour.
+  const profile = await getSessionProfile();
   if (!profile) redirect("/login");
 
   return profile.role === "coach" ? (

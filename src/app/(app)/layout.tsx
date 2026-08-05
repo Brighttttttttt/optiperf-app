@@ -1,23 +1,17 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
 import { BottomNav } from "@/components/BottomNav";
-import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
+  const profile = await getSessionProfile();
   if (!profile) redirect("/login");
 
+  const supabase = await createClient();
   const [msgRes, notifRes] = await Promise.all([
     supabase
       .from("messages")

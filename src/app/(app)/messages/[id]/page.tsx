@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/session";
 import { MessageThread } from "@/components/MessageThread";
 import type { Message, Profile } from "@/lib/types";
 
@@ -10,9 +11,7 @@ export default async function ThreadPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
   // La RLS ne laisse voir que les profils liés : profil vide = accès refusé.

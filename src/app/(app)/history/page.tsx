@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { SessionRow } from "@/components/SessionRow";
 import { TrendCharts } from "@/components/TrendCharts";
@@ -17,9 +18,7 @@ function monthLabel(iso: string): string {
 
 export default async function HistoryPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
   const now = new Date();

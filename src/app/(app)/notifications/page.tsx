@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { IconCalendar, IconPulse, IconBell } from "@/components/Icons";
 import { markAllNotificationsRead } from "@/app/(app)/actions";
@@ -16,9 +17,7 @@ function typeIcon(type: string) {
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
   const { data } = await supabase
