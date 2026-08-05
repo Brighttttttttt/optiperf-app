@@ -35,6 +35,8 @@ GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche
 
 - RLS sur toutes les tables ; les tests d'isolation comptent.
 - Séparation stricte prescription / compte rendu sur `sessions`, imposée par le trigger `enforce_session_ownership` (migration 002) : le coach ne modifie ni RPE, ni durée réelle, ni commentaire, ni statut ; l'athlète ne modifie pas la consigne d'une séance prescrite. Toute nouvelle colonne de `sessions` doit être classée d'un côté ou de l'autre dans ce trigger.
+- Codes d'invitation : 10 caractères tirés d'un alphabet sans signes confondables (`generate_invite_code`, migration 004). Ils se lisent et se retapent à la main — ne pas rallonger sans repenser la saisie.
+- Un compte ne peut pas envoyer plus de 20 messages par minute (trigger `enforce_message_rate_limit`). L'erreur remonte jusqu'au fil de discussion : toute nouvelle voie d'écriture doit afficher l'échec plutôt que l'avaler.
 - Les limites de longueur sont doublées : contraintes SQL (migration 002) et constante `LIMITS` dans `src/lib/types.ts`, utilisée par les actions serveur et les `maxLength` des formulaires. Garder les deux synchronisées.
 - En-têtes de sécurité (dont la CSP) dans `src/lib/security-headers.ts`, appliqués par le proxy et vérifiés par `e2e/headers.spec.ts`. Toute nouvelle origine appelée par le navigateur (analytics, CDN, stockage Supabase…) doit être ajoutée à la directive correspondante, sinon elle sera bloquée en production.
 - Sur Vercel, un POST **sans** en-tête `Next-Action` vers une page prérendue (`/login`, `/signup`) répond 405 : c'est le CDN qui sert la page, comportement normal et non un bug. Les server actions du navigateur envoient cet en-tête et atteignent bien la fonction.

@@ -10,7 +10,15 @@ export function InviteCode({ code }: { code: string }) {
         dans Réglages pour rejoindre ton groupe.
       </p>
       <div className="mt-3 flex items-center gap-2">
-        <span className="flex-1 text-center font-display text-[28px] font-bold tracking-[0.35em] bg-pine-soft text-pine-deep rounded-xl py-2.5 pl-[0.35em]">
+        {/* Le code se lit et se retape à la main : chasse fixe, bien espacée,
+            et une taille qui s'adapte à sa longueur. */}
+        <span
+          className={`flex-1 text-center font-display font-bold bg-pine-soft text-pine-deep rounded-xl py-2.5 tabular-nums ${
+            code.length > 8
+              ? "text-[20px] tracking-[0.18em] pl-[0.18em]"
+              : "text-[28px] tracking-[0.35em] pl-[0.35em]"
+          }`}
+        >
           {code}
         </span>
         <CopyButton text={code} />

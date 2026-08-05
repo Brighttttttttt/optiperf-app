@@ -23,6 +23,7 @@ export function MessageThread({
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,12 +72,21 @@ export function MessageThread({
     const content = text.trim();
     if (!content || content.length > LIMITS.message || sending) return;
     setSending(true);
+    setSendError(null);
     const { data, error } = await supabase
       .from("messages")
       .insert({ sender_id: meId, recipient_id: partner.id, content })
       .select()
       .single<Message>();
-    if (!error && data) {
+    if (error) {
+      // La base refuse au-delà de 20 messages par minute : le dire, plutôt
+      // que de laisser le message disparaître sans explication.
+      setSendError(
+        /rate|minute|débit/i.test(error.message)
+          ? "Trop de messages coup sur coup. Patiente une minute."
+          : "Message non envoyé. Vérifie ta connexion et réessaie."
+      );
+    } else if (data) {
       setMessages((prev) => [...prev, data]);
       setText("");
     }
@@ -150,6 +160,14 @@ export function MessageThread({
           <div ref={bottomRef} />
         </div>
 
+        {sendError && (
+          <p
+            role="alert"
+            className="border-t border-line bg-rpe-max-soft px-4 py-2 text-[13px] font-medium text-rpe-max"
+          >
+            {sendError}
+          </p>
+        )}
         <form
           onSubmit={send}
           className="flex items-center gap-2 border-t border-line bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
