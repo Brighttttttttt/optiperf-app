@@ -30,12 +30,14 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Ne rien insérer entre createServerClient et getUser :
-  // getUser() rafraîchit le jeton et synchronise les cookies.
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  let user = authUser;
+  // Ne rien insérer entre createServerClient et cet appel : il rafraîchit le
+  // jeton expiré et synchronise les cookies. getClaims vérifie la signature
+  // localement (clé ES256 du projet) — ~1 ms au lieu d'un aller-retour réseau,
+  // et un jeton falsifié est rejeté tout autant.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  let user: { id: string } | null = claimsData?.claims?.sub
+    ? { id: claimsData.claims.sub }
+    : null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
