@@ -1,6 +1,12 @@
 // Origine Supabase autorisée pour les appels REST et le temps réel.
 const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseWs = supabaseOrigin.replace(/^https:/, "wss:");
+// `http` → `ws` et non `https:` → `wss:` : une base servie en clair (la base
+// locale de la CLI Supabase, en développement comme en intégration continue)
+// ne correspondait pas au motif, `connect-src` se retrouvait sans origine
+// WebSocket et le navigateur refusait l'abonnement temps réel — les compteurs
+// de la barre de navigation cessaient de se mettre à jour, sans autre trace
+// qu'un message de console.
+const supabaseWs = supabaseOrigin.replace(/^http/, "ws");
 
 // 'unsafe-inline' sur les styles et scripts : Tailwind et Next injectent
 // des styles et la charge utile RSC en ligne. 'unsafe-eval' est réservé

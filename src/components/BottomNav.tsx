@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -36,6 +36,31 @@ const TABS: Record<Role, Tab[]> = {
     { href: "/settings", label: "Réglages", icon: IconSettings },
   ],
 };
+
+/**
+ * Trait sous l'onglet touché, le temps que la page arrive.
+ *
+ * Le retour visuel passe par un état client posé après hydratation, et non
+ * par un `loading.tsx` : celui de #36 ouvrait une frontière de suspension sur
+ * la route entière, et l'échange de fin de flux ne se produisait pas en
+ * production — les pages restaient définitivement sur leur squelette
+ * (incident #44, corrigé en urgence par #43). Ce mode de panne est
+ * structurellement hors d'atteinte ici : aucune frontière n'est créée.
+ *
+ * Toujours rendu, seule l'opacité change : un élément qui apparaît décalerait
+ * la mise en page au moment même où l'utilisateur attend.
+ */
+function TraitDeNavigation() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={`absolute inset-x-4 top-0 h-0.5 rounded-full bg-pine transition-opacity duration-150 ${
+        pending ? "opacity-100 animate-pulse" : "opacity-0"
+      }`}
+    />
+  );
+}
 
 export function BottomNav({
   role,
@@ -109,6 +134,7 @@ export function BottomNav({
                 active ? "text-pine" : "text-ink-soft hover:text-ink"
               }`}
             >
+              <TraitDeNavigation />
               <span className="relative">
                 <tab.icon className="size-6" />
                 {count > 0 && (
