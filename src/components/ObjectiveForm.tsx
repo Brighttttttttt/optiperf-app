@@ -5,6 +5,7 @@ import { addObjective } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
 import { IconPlus } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
+import { LIMITS } from "@/lib/types";
 
 export function ObjectiveForm({ athleteId }: { athleteId: string }) {
   const [open, setOpen] = useState(false);
@@ -45,6 +46,7 @@ export function ObjectiveForm({ athleteId }: { athleteId: string }) {
           id="obj-title"
           name="title"
           required
+          maxLength={LIMITS.title}
           placeholder="Ex. Marathon de Paris"
           className={inputClass}
         />

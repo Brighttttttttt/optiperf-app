@@ -1,3 +1,13 @@
+/** Limites de longueur — miroir des contraintes SQL (migration 002). */
+export const LIMITS = {
+  fullName: 80,
+  title: 120,
+  description: 4000,
+  comment: 4000,
+  notes: 2000,
+  message: 4000,
+} as const;
+
 export type Role = "coach" | "athlete";
 
 export type Profile = {

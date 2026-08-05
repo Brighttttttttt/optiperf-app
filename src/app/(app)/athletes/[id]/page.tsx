@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, EmptyState, PageHeader, StatTile, StatusBadge } from "@/components/ui";
 import { SessionRow } from "@/components/SessionRow";
 import { ObjectiveForm } from "@/components/ObjectiveForm";
+import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
 import { IconChat, IconPlus } from "@/components/Icons";
 import { deleteObjective, deleteSession } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
@@ -203,6 +204,13 @@ export default async function AthletePage({
               ))}
             </Card>
           )}
+        </section>
+
+        <section className="pt-2">
+          <RemoveAthleteButton
+            athleteId={athlete.id}
+            athleteName={athlete.full_name}
+          />
         </section>
       </div>
     </div>

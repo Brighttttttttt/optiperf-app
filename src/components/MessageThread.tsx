@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { IconChevronLeft, IconSend } from "./Icons";
 import { formatDayRelative, toISODate } from "@/lib/dates";
 import { initials } from "@/lib/initials";
-import type { Message, Profile } from "@/lib/types";
+import { LIMITS, type Message, type Profile } from "@/lib/types";
 
 export function MessageThread({
   meId,
@@ -69,7 +69,7 @@ export function MessageThread({
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const content = text.trim();
-    if (!content || sending) return;
+    if (!content || content.length > LIMITS.message || sending) return;
     setSending(true);
     const { data, error } = await supabase
       .from("messages")
@@ -159,6 +159,7 @@ export function MessageThread({
             onChange={(e) => setText(e.target.value)}
             placeholder="Ton message…"
             aria-label="Ton message"
+            maxLength={LIMITS.message}
             className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-[15px] focus:border-pine focus:outline-none"
           />
           <button

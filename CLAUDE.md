@@ -31,5 +31,7 @@ GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche
 ## Sécurité
 
 - RLS sur toutes les tables ; les tests d'isolation comptent.
+- Séparation stricte prescription / compte rendu sur `sessions`, imposée par le trigger `enforce_session_ownership` (migration 002) : le coach ne modifie ni RPE, ni durée réelle, ni commentaire, ni statut ; l'athlète ne modifie pas la consigne d'une séance prescrite. Toute nouvelle colonne de `sessions` doit être classée d'un côté ou de l'autre dans ce trigger.
+- Les limites de longueur sont doublées : contraintes SQL (migration 002) et constante `LIMITS` dans `src/lib/types.ts`, utilisée par les actions serveur et les `maxLength` des formulaires. Garder les deux synchronisées.
 - En-têtes de sécurité (dont la CSP) dans `next.config.ts`, vérifiés par `e2e/headers.spec.ts`. Toute nouvelle origine appelée par le navigateur (analytics, CDN, stockage Supabase…) doit être ajoutée à la directive correspondante, sinon elle sera bloquée en production.
 - `SUPABASE_SECRET_KEY` ne sert qu'aux scripts locaux (seed) — jamais côté client, jamais sur Vercel, jamais commitée (`.env.local` est ignoré par git).
