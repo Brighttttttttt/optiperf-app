@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { withSecurityHeaders } from "@/lib/security-headers";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
 
@@ -73,8 +74,8 @@ export async function updateSession(request: NextRequest) {
         }
       }
     }
-    return redirect;
+    return withSecurityHeaders(redirect);
   }
 
-  return supabaseResponse;
+  return withSecurityHeaders(supabaseResponse);
 }
