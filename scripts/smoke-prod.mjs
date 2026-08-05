@@ -50,7 +50,26 @@ for (const path of ["/login", "/signup"]) {
   );
 }
 
-// 3. Une route protégée redirige vers la connexion, en une seule fois.
+// 3. Le manifeste et les icônes doivent rester accessibles sans session :
+//    c'est le système d'exploitation qui les récupère au moment de l'ajout
+//    à l'écran d'accueil, sans cookie.
+for (const path of ["/manifest.webmanifest", "/icon", "/apple-icon"]) {
+  const res = await fetch(`${BASE}${path}`, { redirect: "manual" });
+  check(
+    `${path} est servi sans authentification`,
+    res.status === 200,
+    `reçu ${res.status}${res.status === 307 ? " — protégé par erreur" : ""}`
+  );
+}
+
+const manifest = await fetch(`${BASE}/manifest.webmanifest`).then((r) => r.json());
+check(
+  "le manifeste déclare le mode plein écran",
+  manifest.display === "standalone" && !!manifest.name,
+  `display=${manifest.display}`
+);
+
+// 4. Une route protégée redirige vers la connexion, en une seule fois.
 const guarded = await fetch(`${BASE}/messages`, { redirect: "manual" });
 check(
   "GET /messages redirige vers /login",
@@ -59,7 +78,7 @@ check(
   `${guarded.status} → ${guarded.headers.get("location") ?? "sans Location"}`
 );
 
-// 4. La racine ne boucle pas : une seule redirection suffit à atterrir.
+// 5. La racine ne boucle pas : une seule redirection suffit à atterrir.
 const root = await fetch(`${BASE}/`, { redirect: "follow" });
 check("GET / se stabilise", root.status === 200, `reçu ${root.status}`);
 

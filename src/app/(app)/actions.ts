@@ -133,6 +133,45 @@ export async function planBatch(
   redirect(`/?planifiees=${rows.length}`);
 }
 
+export async function updateSession(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase } = await requireUser();
+  const id = String(formData.get("session_id") ?? "");
+  const athleteId = String(formData.get("athlete_id") ?? "");
+  if (!id) return { error: "Séance introuvable." };
+
+  const title = text(formData, "title", LIMITS.title);
+  if (title === null) return tooLong("Le titre", LIMITS.title);
+  const date = String(formData.get("date") ?? "");
+  if (!title || !date) return { error: "Titre et date sont obligatoires." };
+
+  const description = optionalText(formData, "description", LIMITS.description);
+  if (description === undefined) return tooLong("Les consignes", LIMITS.description);
+
+  const rawDuration = Number(formData.get("duration_planned_min"));
+
+  // Le trigger enforce_session_ownership garantit qu'un coach ne touche
+  // qu'à la prescription, jamais au compte rendu de l'athlète.
+  const { error } = await supabase
+    .from("sessions")
+    .update({
+      title,
+      date,
+      type: String(formData.get("type") ?? "endurance"),
+      description,
+      duration_planned_min:
+        Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : null,
+    })
+    .eq("id", id)
+    .eq("status", "planned");
+  if (error) return { error: "Modification impossible. Réessaie." };
+
+  revalidatePath("/", "layout");
+  redirect(athleteId ? `/athletes/${athleteId}` : "/");
+}
+
 export async function deleteTemplate(formData: FormData) {
   const { supabase } = await requireUser();
   const id = String(formData.get("template_id") ?? "");

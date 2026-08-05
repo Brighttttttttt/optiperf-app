@@ -30,6 +30,17 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  /* En plein écran, le haut de la page passe sous l'encoche. */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Installée, l'app n'a plus de barre de navigateur : le geste de retour
+   iOS reste possible, mais le contenu ne doit pas rebondir comme une
+   page web. */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: none;
+  }
 }
 
 :focus-visible {
