@@ -79,9 +79,24 @@ jobs:
       - name: Exposer les identifiants locaux
         run: |
           supabase status -o env | sed 's/"//g' > /tmp/supabase.env
-          echo "NEXT_PUBLIC_SUPABASE_URL=$(grep '^API_URL=' /tmp/supabase.env | cut -d= -f2-)" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(grep '^ANON_KEY=' /tmp/supabase.env | cut -d= -f2-)" >> $GITHUB_ENV
-          echo "SUPABASE_SECRET_KEY=$(grep '^SERVICE_ROLE_KEY=' /tmp/supabase.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "Clés exposées par la CLI :"
+          cut -d= -f1 /tmp/supabase.env | sed 's/^/  /'
+
+          lire() { grep "^$1=" /tmp/supabase.env | cut -d= -f2-; }
+          # Selon la version de la CLI, les clés sont exposées au nouveau
+          # format (PUBLISHABLE/SECRET) ou à l'ancien (ANON/SERVICE_ROLE).
+          PUB=$(lire PUBLISHABLE_KEY); [ -z "$PUB" ] && PUB=$(lire ANON_KEY)
+          SEC=$(lire SECRET_KEY); [ -z "$SEC" ] && SEC=$(lire SERVICE_ROLE_KEY)
+          API=$(lire API_URL)
+
+          if [ -z "$PUB" ] || [ -z "$SEC" ] || [ -z "$API" ]; then
+            echo "::error::Identifiants Supabase locaux introuvables"; exit 1
+          fi
+          echo "Publique : ${PUB:0:10}… · Secrète : ${SEC:0:10}… · API : $API"
+
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUB" >> $GITHUB_ENV
+          echo "SUPABASE_SECRET_KEY=$SEC" >> $GITHUB_ENV
 
       - name: Installer les dépendances
         run: npm ci
