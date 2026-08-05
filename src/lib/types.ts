@@ -53,6 +53,16 @@ export type TrainingSession = {
   created_at: string;
 };
 
+export type SessionTemplate = {
+  id: string;
+  coach_id: string;
+  title: string;
+  type: string;
+  description: string | null;
+  duration_planned_min: number | null;
+  created_at: string;
+};
+
 export type Objective = {
   id: string;
   athlete_id: string;

@@ -5,6 +5,8 @@ import { InviteCode } from "@/components/InviteCode";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
 import { NameForm } from "@/components/NameForm";
 import { DeleteAccount } from "@/components/DeleteAccount";
+import { TemplateList } from "@/components/TemplateList";
+import type { SessionTemplate } from "@/lib/types";
 import { signOut } from "@/app/(auth)/actions";
 import { initials } from "@/lib/initials";
 import type { Profile } from "@/lib/types";
@@ -22,6 +24,16 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .single<Profile>();
   if (!profile) redirect("/login");
+
+  let templates: SessionTemplate[] = [];
+  if (profile.role === "coach") {
+    const { data } = await supabase
+      .from("session_templates")
+      .select("*")
+      .eq("coach_id", user.id)
+      .order("created_at", { ascending: false });
+    templates = (data ?? []) as SessionTemplate[];
+  }
 
   let coach: Profile | null = null;
   if (profile.role === "athlete") {
@@ -65,6 +77,8 @@ export default async function SettingsPage() {
         {profile.role === "coach" && profile.invite_code && (
           <InviteCode code={profile.invite_code} />
         )}
+
+        {profile.role === "coach" && <TemplateList templates={templates} />}
 
         {profile.role === "athlete" && (
           <Card className="p-4">

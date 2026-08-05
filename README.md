@@ -16,6 +16,7 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 2. Dashboard → **SQL Editor** → exécute les migrations de [`supabase/migrations/`](supabase/migrations/) **dans l'ordre numérique** (coller le contenu → **Run**) :
    - `001_init.sql` — tables, sécurité (RLS), triggers de notifications, temps réel
    - `002_hardening.sql` — limites de longueur, séparation prescription/compte rendu, suppression de compte
+   - `003_session_templates.sql` — modèles de séances réutilisables
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
@@ -85,7 +86,8 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 
 ## Fonctionnement
 
-- **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique), planification de séances, messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
+- **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique), messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
+- **Planification groupée** : un écran unique où le coach décrit la séance une fois, coche plusieurs athlètes et plusieurs dates, et crée tout en un envoi. Les séances récurrentes se gardent en **modèles** réutilisables ; une séance déjà planifiée se **duplique** en un tap.
 - **Athlète** : séances à venir, saisie du réalisé avec la rampe RPE 1–10, séances libres, historique, messagerie avec son coach.
 - **Métriques** ([`src/lib/metrics.ts`](src/lib/metrics.ts)) : charge = RPE × durée (session-RPE, Foster) ; état de forme = ratio charge aiguë (7 j) / chronique (28 j).
 - **Sécurité** : Row Level Security sur toutes les tables — un athlète ne voit que ses données, un coach uniquement celles de ses athlètes liés. En-têtes HTTP durcis (CSP, anti-clickjacking, HSTS) définis dans `next.config.ts`.

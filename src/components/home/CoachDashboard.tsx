@@ -1,7 +1,12 @@
+import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { PlanningToast } from "@/components/PlanningToast";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { AthleteCard } from "@/components/AthleteCard";
 import { InviteCode } from "@/components/InviteCode";
+import { IconPlus } from "@/components/Icons";
+import { btnPrimary } from "@/lib/styles";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, toISODate } from "@/lib/dates";
 import type { Objective, Profile, TrainingSession } from "@/lib/types";
@@ -76,7 +81,16 @@ export async function CoachDashboard({ coach }: { coach: Profile }) {
       <PageHeader
         eyebrow={`${cards.length} athlète${cards.length > 1 ? "s" : ""}`}
         title="Mon groupe"
+        action={
+          <Link href="/planifier" className={`${btnPrimary} px-3.5 py-2 text-[14px]`}>
+            <IconPlus className="size-4" />
+            Planifier
+          </Link>
+        }
       />
+      <Suspense>
+        <PlanningToast />
+      </Suspense>
       <div className="px-5 space-y-3">
         {cards.map((c) => (
           <AthleteCard
