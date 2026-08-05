@@ -6,7 +6,7 @@ import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
 import { IconPlus } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
-import { SESSION_TYPES } from "@/lib/types";
+import { LIMITS, SESSION_TYPES } from "@/lib/types";
 import { toISODate } from "@/lib/dates";
 
 /** Enregistrer une séance non planifiée par le coach. */
@@ -52,6 +52,7 @@ export function FreeSessionSheet() {
             id="free-title"
             name="title"
             required
+            maxLength={LIMITS.title}
             placeholder="Ex. Footing du midi"
             className={inputClass}
           />
@@ -111,6 +112,7 @@ export function FreeSessionSheet() {
             id="free-comment"
             name="athlete_comment"
             rows={2}
+            maxLength={LIMITS.comment}
             placeholder="Sensations, contexte…"
             className={inputClass}
           />

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { updateName } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
 import { inputClass, labelClass } from "@/lib/styles";
+import { LIMITS } from "@/lib/types";
 
 export function NameForm({ currentName }: { currentName: string }) {
   const [state, action] = useActionState(updateName, null);
@@ -19,6 +20,7 @@ export function NameForm({ currentName }: { currentName: string }) {
           name="full_name"
           defaultValue={currentName}
           required
+          maxLength={LIMITS.fullName}
           className={inputClass}
         />
         <SubmitButton className="shrink-0 px-4 py-2.5">Enregistrer</SubmitButton>

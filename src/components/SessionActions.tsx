@@ -5,6 +5,7 @@ import { completeSession, missSession } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
 import { btnGhost, btnPrimary, inputClass, labelClass } from "@/lib/styles";
+import { LIMITS } from "@/lib/types";
 
 /** Boutons « C'est fait » / « Manquée » d'une séance planifiée,
  *  avec le formulaire de saisie du réalisé (RPE, durée, commentaire). */
@@ -81,6 +82,7 @@ export function SessionActions({
           id={`comment-${sessionId}`}
           name="athlete_comment"
           rows={3}
+          maxLength={LIMITS.comment}
           placeholder="Sensations, contexte, points à signaler…"
           className={inputClass}
         />

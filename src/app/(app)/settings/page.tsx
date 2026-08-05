@@ -4,6 +4,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { InviteCode } from "@/components/InviteCode";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
 import { NameForm } from "@/components/NameForm";
+import { DeleteAccount } from "@/components/DeleteAccount";
 import { signOut } from "@/app/(auth)/actions";
 import { initials } from "@/lib/initials";
 import type { Profile } from "@/lib/types";
@@ -86,11 +87,13 @@ export default async function SettingsPage() {
         <form action={signOut}>
           <button
             type="submit"
-            className="w-full rounded-xl border border-line bg-card px-4 py-3 font-semibold text-rpe-max transition-colors hover:border-rpe-max/40"
+            className="w-full rounded-xl border border-line bg-card px-4 py-3 font-semibold text-ink transition-colors hover:border-pine/50"
           >
             Se déconnecter
           </button>
         </form>
+
+        <DeleteAccount role={profile.role} />
 
         <p className="text-center text-[12px] text-ink-soft pb-2">
           Optiperf · V1

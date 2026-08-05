@@ -13,7 +13,9 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 ### 1. Créer le projet Supabase
 
 1. Crée un projet sur [supabase.com](https://supabase.com) (offre gratuite suffisante).
-2. Dashboard → **SQL Editor** → colle le contenu de [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql) → **Run**. Cela crée les tables, la sécurité (RLS), les triggers de notifications et le temps réel.
+2. Dashboard → **SQL Editor** → exécute les migrations de [`supabase/migrations/`](supabase/migrations/) **dans l'ordre numérique** (coller le contenu → **Run**) :
+   - `001_init.sql` — tables, sécurité (RLS), triggers de notifications, temps réel
+   - `002_hardening.sql` — limites de longueur, séparation prescription/compte rendu, suppression de compte
 3. Dashboard → **Authentication → Sign In / Up → Email** : désactive **Confirm email** (pour le MVP, l'inscription connecte directement ; tu pourras le réactiver plus tard).
 
 ### 2. Configurer l'app

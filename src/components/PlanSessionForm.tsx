@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { planSession } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
 import { inputClass, labelClass } from "@/lib/styles";
-import { SESSION_TYPES } from "@/lib/types";
+import { LIMITS, SESSION_TYPES } from "@/lib/types";
 import { addDays, toISODate } from "@/lib/dates";
 
 export function PlanSessionForm({ athleteId }: { athleteId: string }) {
@@ -21,6 +21,7 @@ export function PlanSessionForm({ athleteId }: { athleteId: string }) {
           id="plan-title"
           name="title"
           required
+          maxLength={LIMITS.title}
           placeholder="Ex. Sortie longue vallonnée"
           className={inputClass}
         />
@@ -74,6 +75,7 @@ export function PlanSessionForm({ athleteId }: { athleteId: string }) {
           id="plan-description"
           name="description"
           rows={4}
+          maxLength={LIMITS.description}
           placeholder={"Échauffement 15 min\n6 × 3 min allure 5 km, récup 90 s\nRetour au calme 10 min"}
           className={inputClass}
         />
