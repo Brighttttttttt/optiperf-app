@@ -12,14 +12,24 @@ test("un lien de confirmation invalide renvoie vers la connexion", async ({
   ).toBeVisible();
 });
 
-test("la route d'atterrissage n'est pas renvoyée vers la connexion sans motif", async ({
+test("sans jeton dans le fragment, la finalisation renvoie vers la connexion", async ({
   page,
 }) => {
-  // Sans paramètre exploitable, on doit atterrir sur /login avec le motif
-  // d'échec — et non sur une redirection nue du proxy.
-  const response = await page.goto("/auth/callback");
-  expect(response?.status()).toBe(200);
-  await expect(page).toHaveURL(/confirmation=echec/);
+  // Le relais côté client ne trouve rien à traiter : message explicite
+  // plutôt qu'une page bloquée sur « Confirmation en cours ».
+  await page.goto("/auth/finaliser");
+  await expect(page).toHaveURL(/\/login\?confirmation=echec$/);
+});
+
+test("les jetons du fragment ouvrent la session côté client", async ({
+  page,
+}) => {
+  // Jetons volontairement invalides : on vérifie que le fragment est bien
+  // lu et soumis à Supabase, pas qu'une session s'ouvre.
+  await page.goto(
+    "/auth/finaliser#access_token=jeton-invalide&refresh_token=refresh-invalide&type=signup"
+  );
+  await expect(page).toHaveURL(/\/login\?confirmation=echec$/);
 });
 
 test("la page de connexion reste vierge sans paramètre", async ({ page }) => {
