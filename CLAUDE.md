@@ -31,4 +31,5 @@ GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche
 ## Sécurité
 
 - RLS sur toutes les tables ; les tests d'isolation comptent.
+- En-têtes de sécurité (dont la CSP) dans `next.config.ts`, vérifiés par `e2e/headers.spec.ts`. Toute nouvelle origine appelée par le navigateur (analytics, CDN, stockage Supabase…) doit être ajoutée à la directive correspondante, sinon elle sera bloquée en production.
 - `SUPABASE_SECRET_KEY` ne sert qu'aux scripts locaux (seed) — jamais côté client, jamais sur Vercel, jamais commitée (`.env.local` est ignoré par git).
