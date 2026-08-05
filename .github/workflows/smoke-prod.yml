@@ -15,6 +15,12 @@ permissions:
 # une redirection d'authentification à toutes les requêtes.
 env:
   PROD_URL: https://optiperf-app.vercel.app
+  # Valeurs publiques (elles partent déjà dans le navigateur), stockées en
+  # variables du dépôt : elles permettent au contrôle de se connecter avec
+  # le compte de démonstration et de vérifier qu'une page affiche vraiment
+  # son contenu.
+  SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+  SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
 
 jobs:
   smoke:
@@ -29,6 +35,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
 
       # L'alias bascule vers le nouveau déploiement juste après l'événement :
       # on laisse quelques secondes, puis on réessaie.
@@ -42,3 +49,24 @@ jobs:
             sleep 20
           done
           exit 1
+
+      # Un vrai navigateur, contre le site en ligne : c'est le seul moyen de
+      # voir qu'une page répond correctement tout en n'affichant rien.
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Installer Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Contrôle d'affichage en production
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PROD_URL }}
+        run: npx playwright test --project=production
+
+      - name: Rapport Playwright en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-production
+          path: playwright-report/
+          retention-days: 7

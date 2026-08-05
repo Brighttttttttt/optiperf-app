@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
 
+// Quand une adresse est fournie, on teste un site déjà déployé : pas de
+// serveur local à démarrer.
+const DEPLOYE = process.env.PLAYWRIGHT_BASE_URL;
+
 // Les tests de fumée n'ont pas besoin d'une vraie base : un env factice
 // suffit, les visiteurs non connectés étant simplement redirigés. Les
 // parcours connectés, eux, reçoivent l'adresse d'une base réelle.
@@ -35,11 +39,22 @@ export default defineConfig({
       testDir: "./e2e-auth",
       use: { ...devices["Pixel 7"] },
     },
+    {
+      // Contrôle après déploiement, dans un vrai navigateur, contre le site
+      // en ligne. C'est le seul dispositif capable de voir qu'une page
+      // répond correctement tout en n'affichant rien — le mode de panne de
+      // l'incident #44, invisible pour une vérification sur le HTML brut.
+      name: "production",
+      testDir: "./e2e-prod",
+      use: { ...devices["Pixel 7"], baseURL: DEPLOYE },
+    },
   ],
-  webServer: {
-    command: `npm run start -- --port ${PORT}`,
-    port: PORT,
-    reuseExistingServer: !process.env.CI,
-    env,
-  },
+  webServer: DEPLOYE
+    ? undefined
+    : {
+        command: `npm run start -- --port ${PORT}`,
+        port: PORT,
+        reuseExistingServer: !process.env.CI,
+        env,
+      },
 });
