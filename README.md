@@ -16,7 +16,11 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 2. Dashboard → **SQL Editor** → exécute les migrations de [`supabase/migrations/`](supabase/migrations/) **dans l'ordre numérique** (coller le contenu → **Run**) :
    - `001_init.sql` — tables, sécurité (RLS), triggers de notifications, temps réel
    - `002_hardening.sql` — limites de longueur, séparation prescription/compte rendu, suppression de compte
-3. Dashboard → **Authentication → Sign In / Up → Email** : désactive **Confirm email** (pour le MVP, l'inscription connecte directement ; tu pourras le réactiver plus tard).
+3. Dashboard → **Authentication → URL Configuration** :
+   - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
+   - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
+
+   La confirmation par email peut rester activée : l'app fournit la route d'atterrissage `/auth/callback` qui ouvre la session.
 
 ### 2. Configurer l'app
 
