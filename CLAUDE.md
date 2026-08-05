@@ -8,7 +8,8 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 
 - `npm run dev` — serveur de dev
 - `npm test` — tests unitaires Vitest (`src/lib/*.test.ts`)
-- `npm run test:e2e` — e2e Playwright (faire `npm run build` avant)
+- `npm run test:e2e` — e2e de fumée, sans base (faire `npm run build` avant)
+- `npm run test:e2e:auth` — parcours connectés contre une base réelle. **Tout changement touchant au rendu d'une page authentifiée doit être couvert ici** : les tests de fumée ne voient pas si une page affiche son contenu, c'est ainsi qu'un écran d'attente a rendu l'app invisible en production sans qu'aucun test ne réagisse.
 - `npm run lint` et `npm run typecheck` — exigés par la CI
 - `npm run smoke` — test de fumée contre la production déployée (routage CDN, en-têtes, POST des server actions) ; rejoué automatiquement après chaque déploiement
 - `npm run seed` — données de démo (demande `SUPABASE_SECRET_KEY` dans `.env.local`)

@@ -78,9 +78,12 @@ La CI (GitHub Actions) enchaîne : lint, typecheck, tests unitaires, build, test
 npm run lint        # ESLint
 npm run typecheck   # types de routes + tsc
 npm test            # tests unitaires (Vitest) — métriques, dates, RPE
-npm run test:e2e    # e2e de fumée (Playwright, viewport mobile) — build requis avant
-npm run smoke       # test de fumée contre la production déployée
+npm run test:e2e      # e2e de fumée (Playwright, viewport mobile) — build requis avant
+npm run test:e2e:auth # parcours connectés — nécessite une base Supabase accessible
+npm run smoke         # test de fumée contre la production déployée
 ```
+
+Les **parcours connectés** (`e2e-auth/`) sont les seuls tests qui vérifient qu'une page authentifiée affiche réellement son contenu. En intégration continue, ils tournent contre une base Supabase démarrée localement par la CLI, qui applique les migrations du dépôt — ce qui les valide au passage. Pour les lancer sur ta machine, il faut Docker et `supabase start`.
 
 Un second workflow rejoue le test de fumée sur l'URL de production après chaque déploiement Vercel : il couvre ce que les tests locaux ne voient pas (routage et cache du CDN).
 
