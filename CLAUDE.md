@@ -24,7 +24,7 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - Métriques d'entraînement (charge session-RPE de Foster, état ACWR) : fonctions pures dans `src/lib/metrics.ts`, couvertes par les tests — les modifier avec leurs tests.
 - Dates : toujours passer par `src/lib/dates.ts` — le fuseau Europe/Paris y est forcé car Vercel tourne en UTC. Ne jamais formater une date « à la main » côté serveur.
 - Mutations : actions serveur dans `src/app/(auth)/actions.ts` et `src/app/(app)/actions.ts`.
-- Liens d'email (confirmation, mot de passe) : l'inscription passe `emailRedirectTo` calculé depuis l'origine servie, et `src/app/auth/callback/route.ts` échange le jeton contre une session. Toute nouvelle route de ce type doit figurer dans `PUBLIC_PATHS` du proxy, sinon elle est redirigée vers `/login` avant de s'exécuter.
+- Liens d'email (confirmation, mot de passe) : l'inscription passe `emailRedirectTo` calculé depuis l'origine servie. `src/app/auth/callback/route.ts` traite les formes lisibles côté serveur (`?code=`, `?token_hash=`), puis relaie vers `src/app/auth/finaliser/page.tsx` pour le flux implicite, où les jetons arrivent dans le **fragment** (`#access_token=…`) que le navigateur n'envoie jamais au serveur. Tout `/auth/*` est public dans le proxy, sinon la confirmation serait interrompue avant de s'exécuter.
 
 ## Workflow
 

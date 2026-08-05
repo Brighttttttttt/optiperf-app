@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(`${origin}/`);
   }
 
-  // Lien expiré, déjà utilisé, ou ouvert sur un autre appareil que celui
-  // d'inscription : on renvoie vers la connexion avec un message clair.
-  return NextResponse.redirect(`${origin}/login?confirmation=echec`);
+  // Reste le flux implicite, où Supabase place les jetons dans le fragment
+  // (`#access_token=…`) : le navigateur ne l'envoie jamais au serveur. Seul
+  // du code client peut le lire, d'où le relais vers /auth/finaliser — le
+  // fragment survit à la redirection.
+  return NextResponse.redirect(`${origin}/auth/finaliser`);
 }

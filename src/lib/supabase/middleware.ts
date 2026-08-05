@@ -2,9 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { withSecurityHeaders } from "@/lib/security-headers";
 
-// /auth/callback reçoit les liens d'email : il doit rester accessible sans
-// session, puisque c'est justement lui qui l'ouvre.
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback"];
+// Les routes /auth/* reçoivent les liens d'email : elles doivent rester
+// accessibles sans session, puisque ce sont elles qui l'ouvrent.
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -55,8 +55,9 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // La route d'échange de jeton se charge elle-même de rediriger.
-  const isCallback = path.startsWith("/auth/callback");
+  // Les routes d'échange de jeton se chargent elles-mêmes de rediriger : les
+  // renvoyer vers / couperait la confirmation en cours.
+  const isCallback = path.startsWith("/auth/");
   const destination =
     !user && !isPublic
       ? "/login"
