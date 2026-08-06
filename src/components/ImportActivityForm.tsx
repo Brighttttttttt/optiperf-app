@@ -4,7 +4,6 @@ import { useActionState, useRef, useState } from "react";
 import { importActivity } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
-import { IconPlus } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
 import { LIMITS, SESSION_TYPES, type TrainingSession } from "@/lib/types";
 import {
@@ -27,8 +26,15 @@ const NOUVELLE = "nouvelle";
  * tiré avant de valider, et plusieurs mégaoctets n'ont pas à traverser le
  * réseau. Ne part au serveur que ce qui est affiché ici.
  */
-export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] }) {
-  const [open, setOpen] = useState(false);
+export function ImportActivityForm({
+  sessions,
+  onCancel,
+  onDone,
+}: {
+  sessions: TrainingSession[];
+  onCancel: () => void;
+  onDone: () => void;
+}) {
   const [lue, setLue] = useState<Lue | null>(null);
   const [erreurLecture, setErreurLecture] = useState<string | null>(null);
   const [rpe, setRpe] = useState<number | null>(null);
@@ -39,15 +45,7 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
   const [prevState, setPrevState] = useState(state);
   if (state !== prevState) {
     setPrevState(state);
-    if (state?.ok) fermer();
-  }
-
-  function fermer() {
-    setOpen(false);
-    setLue(null);
-    setErreurLecture(null);
-    setRpe(null);
-    setSeance("");
+    if (state?.ok) onDone();
   }
 
   async function analyser(fichier: File | undefined) {
@@ -82,19 +80,6 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
     candidates.length === 1 ? candidates[0].id : candidates.length === 0 ? NOUVELLE : "";
   const seanceChoisie = seance || defaut;
   const nouvelleSeance = seanceChoisie === NOUVELLE;
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`${btnGhost} w-full py-3`}
-      >
-        <IconPlus className="size-4" />
-        Importer un fichier de montre
-      </button>
-    );
-  }
 
   return (
     <div className="bg-card border border-line rounded-2xl p-4">
@@ -236,7 +221,7 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
 
           <div className="flex gap-2">
             <SubmitButton className="flex-1 py-2.5">Enregistrer</SubmitButton>
-            <button type="button" onClick={fermer} className={btnGhost}>
+            <button type="button" onClick={onCancel} className={btnGhost}>
               Annuler
             </button>
           </div>
@@ -244,7 +229,7 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
       )}
 
       {!lue && (
-        <button type="button" onClick={fermer} className={`${btnGhost} mt-3 w-full`}>
+        <button type="button" onClick={onCancel} className={`${btnGhost} mt-3 w-full`}>
           Annuler
         </button>
       )}
