@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { RpeDot } from "./ui";
+import { IconChevronRight } from "./Icons";
 import { formatDayShort, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import {
@@ -29,7 +31,10 @@ export function SessionRow({
     activity.avg_heart_rate !== null ? `${activity.avg_heart_rate} bpm` : null,
   ].filter(Boolean).join(" · ");
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <Link
+      href={`/seances/${session.id}`}
+      className="flex items-start gap-3 px-4 py-3 hover:bg-surface/60 transition-colors"
+    >
       <p className="w-12 shrink-0 pt-0.5 font-display text-[17px] font-semibold tabular-nums">
         {formatDayShort(session.date)}
       </p>
@@ -59,6 +64,7 @@ export function SessionRow({
       ) : (
         session.rpe !== null && <RpeDot rpe={session.rpe} />
       )}
-    </div>
+      <IconChevronRight className="size-4 shrink-0 mt-1 text-ink-soft/50" />
+    </Link>
   );
 }

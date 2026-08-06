@@ -1,11 +1,19 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/ui";
+import { getSessionProfile } from "@/lib/supabase/session";
+import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
-import { formatDayRelative } from "@/lib/dates";
-import type { Profile, TrainingSession } from "@/lib/types";
+import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
+import { formatDistance } from "@/lib/activites";
+import {
+  activitySourceLabel,
+  sessionTypeLabel,
+  type Activity,
+  type Profile,
+  type TrainingSession,
+} from "@/lib/types";
 
-export default async function EditSessionPage({
+export default async function SessionPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -13,7 +21,8 @@ export default async function EditSessionPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  // La RLS ne laisse voir que les séances de ses propres athlètes.
+  // La RLS ne laisse voir que les séances de ses propres athlètes, ou les
+  // siennes si on est l'athlète concerné.
   const { data: session } = await supabase
     .from("sessions")
     .select("*")
@@ -21,9 +30,9 @@ export default async function EditSessionPage({
     .maybeSingle<TrainingSession>();
   if (!session) redirect("/");
 
-  // Une séance déjà rapportée appartient au compte rendu de l'athlète :
-  // le coach n'en réécrit pas la prescription après coup.
-  if (session.status !== "planned") redirect(`/athletes/${session.athlete_id}`);
+  const profile = await getSessionProfile();
+  const backHref =
+    profile?.role === "coach" ? `/athletes/${session.athlete_id}` : "/history";
 
   const { data: athlete } = await supabase
     .from("profiles")
@@ -31,12 +40,98 @@ export default async function EditSessionPage({
     .eq("id", session.athlete_id)
     .maybeSingle<Pick<Profile, "full_name">>();
 
+  // Une séance déjà rapportée appartient au compte rendu de l'athlète : le
+  // coach n'en réécrit pas la prescription après coup, il en garde la trace.
+  if (session.status !== "planned") {
+    // Une séance peut agréger plusieurs activités : la plus récente la
+    // représente, comme dans l'historique et la fiche athlète.
+    const { data: activity } = await supabase
+      .from("activities")
+      .select("*")
+      .eq("session_id", session.id)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<Activity>();
+
+    return (
+      <div>
+        <PageHeader
+          eyebrow={`${athlete?.full_name ?? "Athlète"} · ${formatDayRelative(session.date)}`}
+          title={session.title}
+          backHref={backHref}
+        />
+        <div className="px-5 space-y-4">
+          {session.status === "missed" && (
+            <span className="inline-flex rounded-full bg-rpe-max-soft text-rpe-max px-2.5 py-1 text-[13px] font-semibold">
+              Manquée
+            </span>
+          )}
+
+          {(session.description || session.duration_planned_min) && (
+            <Card className="p-4">
+              <p className="text-[13px] font-semibold text-ink-soft">Prévu</p>
+              <p className="mt-1 text-[15px]">
+                {sessionTypeLabel(session.type)}
+                {session.duration_planned_min
+                  ? ` · ${formatDuration(session.duration_planned_min)}`
+                  : ""}
+              </p>
+              {session.description && (
+                <p className="mt-2 text-[14px] text-ink-soft whitespace-pre-line">
+                  {session.description}
+                </p>
+              )}
+            </Card>
+          )}
+
+          {session.status === "completed" && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold text-ink-soft">Réalisé</p>
+                {session.rpe !== null && <RpeChip rpe={session.rpe} />}
+              </div>
+              <p className="mt-1 text-[15px]">
+                {session.duration_actual_min
+                  ? formatDuration(session.duration_actual_min)
+                  : "Durée non précisée"}
+              </p>
+              {session.athlete_comment && (
+                <p className="mt-2 text-[14px] text-ink-soft whitespace-pre-line">
+                  « {session.athlete_comment} »
+                </p>
+              )}
+            </Card>
+          )}
+
+          {activity && (
+            <Card className="p-4">
+              <p className="text-[13px] font-semibold text-ink-soft">
+                Relevé {activitySourceLabel(activity.source)}
+              </p>
+              <p className="mt-1 text-[15px]">
+                {formatDuration(activity.duration_min)}
+                {activity.distance_m !== null &&
+                  ` · ${formatDistance(activity.distance_m)}`}
+                {activity.avg_heart_rate !== null &&
+                  ` · ${activity.avg_heart_rate} bpm`}
+              </p>
+              <p className="mt-0.5 text-[12px] text-ink-soft">
+                {formatDayLong(activity.date)}
+                {activity.file_name && ` · ${activity.file_name}`}
+              </p>
+            </Card>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
         eyebrow={`${athlete?.full_name ?? "Athlète"} · ${formatDayRelative(session.date)}`}
         title="Modifier"
-        backHref={`/athletes/${session.athlete_id}`}
+        backHref={backHref}
       />
       <div className="px-5">
         <EditSessionForm session={session} />
