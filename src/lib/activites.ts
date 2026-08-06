@@ -29,8 +29,12 @@ export type LectureActivite =
   | { ok: true; activite: ActiviteLue }
   | { ok: false; erreur: string };
 
-/** Au-delà, le fichier contient autre chose qu'une séance. */
-export const TAILLE_MAX_OCTETS = 5_000_000;
+/**
+ * Au-delà, le fichier contient autre chose qu'une séance. Un trail de 2 h
+ * enregistré à la seconde pèse déjà 3 Mo en TCX : la marge doit tenir les
+ * sorties longues.
+ */
+export const TAILLE_MAX_OCTETS = 12_000_000;
 
 const echec = (erreur: string): LectureActivite => ({ ok: false, erreur });
 
@@ -59,6 +63,37 @@ function nombres(valeurs: string[]): number[] {
 function moyenne(valeurs: number[]): number | null {
   if (valeurs.length === 0) return null;
   return Math.round(valeurs.reduce((s, v) => s + v, 0) / valeurs.length);
+}
+
+/**
+ * Durée d'une trace GPX, pauses déduites.
+ *
+ * L'écart entre le premier et le dernier point compte les arrêts. Mesuré sur
+ * un trail réel de 2 h : trois interruptions (160, 130 et 67 s) le gonflaient
+ * de 5 minutes, là où le TCX de la même sortie en déclarait 115. En écartant
+ * les intervalles anormalement longs on retombe à 114 — 1 % d'écart au lieu
+ * de 4. Sur une course sans arrêt, le calcul ne change rien : c'est ce que
+ * confirme la seconde paire d'exemples.
+ *
+ * Le seuil suit l'échantillonnage du fichier plutôt que d'être fixe : une
+ * montre en enregistrement « intelligent » espace ses points de plusieurs
+ * secondes, et 10 s fixes y verraient une pause à chaque intervalle.
+ */
+function dureeSecondes(horodatages: Date[]): number {
+  const t = horodatages.map((d) => d.getTime());
+  const ecoule = (t[t.length - 1] - t[0]) / 1000;
+  if (t.length < 3) return ecoule;
+
+  const ecarts: number[] = [];
+  for (let i = 1; i < t.length; i++) ecarts.push((t[i] - t[i - 1]) / 1000);
+
+  const median = [...ecarts].sort((a, b) => a - b)[Math.floor(ecarts.length / 2)];
+  const seuil = Math.max(10, median * 10);
+  const actif = ecarts.filter((e) => e <= seuil).reduce((s, v) => s + v, 0);
+
+  // Garde-fou : si l'écart retiré dépasse la moitié de la sortie, ce n'est
+  // pas une pause qu'on a détectée mais un fichier qu'on a mal lu.
+  return actif >= ecoule / 2 ? actif : ecoule;
 }
 
 /** Distance entre deux points, en mètres (formule de haversine). */
@@ -131,7 +166,7 @@ export function lireGpx(xml: string): LectureActivite {
   }
 
   const debut = horodatages[0];
-  const secondes = (horodatages[horodatages.length - 1].getTime() - debut.getTime()) / 1000;
+  const secondes = dureeSecondes(horodatages);
 
   // Les points sans coordonnées valides sont ignorés plutôt que de fausser la
   // distance : une pause sous tunnel en produit régulièrement.
