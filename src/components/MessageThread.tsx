@@ -94,8 +94,10 @@ export function MessageThread({
   }
 
   return (
-    // Recouvre la page entière : il porte donc lui-même la zone sûre du haut.
-    <div className="fixed inset-0 z-40 bg-surface pt-[env(safe-area-inset-top)]">
+    // S'arrête au-dessus de la barre de navigation, qui reste visible : le
+    // fil garde son défilement propre, mais sans recouvrir les onglets.
+    // Porte lui-même la zone sûre du haut, comme le reste des pages.
+    <div className="fixed inset-x-0 top-0 bottom-28 z-40 bg-surface pt-[env(safe-area-inset-top)]">
       <div className="mx-auto h-full w-full max-w-md flex flex-col">
         <header className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line bg-card">
           <Link
