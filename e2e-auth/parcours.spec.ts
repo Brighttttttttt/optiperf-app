@@ -61,15 +61,46 @@ test.describe("Coach", () => {
     await expect(traits.first()).toHaveCSS("opacity", "0");
   });
 
-  test("la fiche athlète affiche l'évolution et la semaine", async ({ page }) => {
+  test("la fiche athlète est organisée en onglets Planning et Historique", async ({
+    page,
+  }) => {
     await seConnecter(page, "coach@example.com");
     await page.getByText("Léa Martin").click();
 
     await expect(page.getByRole("heading", { name: "Léa Martin" })).toBeVisible();
-    await expect(page.getByText("Charge par semaine")).toBeVisible();
+
+    await page.getByRole("link", { name: "Planning" }).click();
     await expect(page.getByText("Cette semaine")).toBeVisible();
+
+    await page.getByRole("link", { name: "Historique" }).click();
+    await expect(page.getByText("Charge par semaine")).toBeVisible();
     // Les graphiques sont bien tracés, pas seulement leurs titres.
     await expect(page.locator('svg[role="img"]').first()).toBeVisible();
+  });
+
+  test("le coach change d'athlète depuis la fiche sans repasser par le tableau de bord", async ({
+    page,
+  }) => {
+    await seConnecter(page, "coach@example.com");
+    await page.getByText("Léa Martin").click();
+    await expect(page.getByRole("heading", { name: "Léa Martin" })).toBeVisible();
+
+    await page.getByRole("link", { name: "Nino Rossi" }).click();
+    await expect(page.getByRole("heading", { name: "Nino Rossi" })).toBeVisible();
+  });
+
+  test("la messagerie est accessible depuis un onglet de la fiche athlète", async ({
+    page,
+  }) => {
+    await seConnecter(page, "coach@example.com");
+    await page.getByText("Léa Martin").click();
+    await page.getByRole("link", { name: "Messagerie" }).click();
+
+    await expect(page.getByLabel("Ton message")).toBeVisible();
+
+    // Le retour ramène à la fiche athlète, pas à la liste des discussions.
+    await page.getByLabel("Retour").click();
+    await expect(page.getByRole("heading", { name: "Léa Martin" })).toBeVisible();
   });
 
   test("planifier une séance la rend visible à l'athlète", async ({
@@ -110,6 +141,7 @@ test.describe("Coach", () => {
   test("la fiche athlète montre ce que la montre a relevé", async ({ page }) => {
     await seConnecter(page, "coach@example.com");
     await page.getByText("Léa Martin").click();
+    await page.getByRole("link", { name: "Historique" }).click();
 
     // Le coach lit le résumé — durée, distance, fréquence — mais jamais la
     // trace : ces chiffres suffisent à lire la séance sans poser les mêmes
@@ -124,6 +156,7 @@ test.describe("Coach", () => {
   }) => {
     await seConnecter(page, "coach@example.com");
     await page.getByText("Léa Martin").click();
+    await page.getByRole("link", { name: "Historique" }).click();
 
     await page.getByText("Montre · 15,2 km · 148 bpm").first().click();
 

@@ -13,10 +13,13 @@ export function MessageThread({
   meId,
   partner,
   initialMessages,
+  backHref = "/messages",
 }: {
   meId: string;
   partner: Profile;
   initialMessages: Message[];
+  /** Vers la messagerie générale par défaut ; vers la fiche athlète depuis son onglet Messagerie. */
+  backHref?: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -101,8 +104,8 @@ export function MessageThread({
       <div className="mx-auto h-full w-full max-w-md flex flex-col">
         <header className="flex items-center gap-2.5 px-3 py-2.5 border-b border-line bg-card">
           <Link
-            href="/messages"
-            aria-label="Retour aux messages"
+            href={backHref as never}
+            aria-label="Retour"
             className="p-1.5 -ml-1 rounded-full text-ink-soft hover:bg-line/60"
           >
             <IconChevronLeft className="size-6" />
