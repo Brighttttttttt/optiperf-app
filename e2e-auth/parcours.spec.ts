@@ -118,6 +118,23 @@ test.describe("Coach", () => {
       page.getByText("Montre · 15,2 km · 148 bpm").first()
     ).toBeVisible();
   });
+
+  test("le détail d'une séance importée est accessible depuis la fiche athlète", async ({
+    page,
+  }) => {
+    await seConnecter(page, "coach@example.com");
+    await page.getByText("Léa Martin").click();
+
+    await page.getByText("Montre · 15,2 km · 148 bpm").first().click();
+
+    await expect(page).toHaveURL(/\/seances\//);
+    await expect(page.getByText("148 bpm")).toBeVisible();
+    await expect(page.getByText("15,2 km")).toBeVisible();
+
+    // Le retour ramène à la fiche athlète, pas à l'accueil.
+    await page.getByLabel("Retour").click();
+    await expect(page.getByRole("heading", { name: "Léa Martin" })).toBeVisible();
+  });
 });
 
 test.describe("Athlète", () => {
@@ -163,6 +180,42 @@ test.describe("Athlète", () => {
     await page.getByRole("button", { name: "Envoyer" }).click();
 
     await expect(page.getByText(texte)).toBeVisible();
+  });
+
+  test("un message envoyé notifie son destinataire", async ({ page, browser }) => {
+    const texte = `Notif auto ${Date.now()}`;
+
+    await seConnecter(page, "lea@example.com");
+    await page.getByRole("link", { name: "Messages" }).click();
+    await page.getByText("Camille Dupont").click();
+    await page.getByLabel("Ton message").fill(texte);
+    await page.getByRole("button", { name: "Envoyer" }).click();
+    await expect(page.getByText(texte)).toBeVisible();
+
+    // Côté coach, dans une session distincte : la notification déclenchée
+    // par le trigger sur `messages` (migration 008).
+    const contexteCoach = await browser.newContext();
+    const pageCoach = await contexteCoach.newPage();
+    await seConnecter(pageCoach, "coach@example.com");
+    await pageCoach.getByRole("link", { name: "Notifs" }).click();
+    await expect(pageCoach.getByText("Léa Martin t'a écrit")).toBeVisible();
+    await contexteCoach.close();
+  });
+
+  test("le détail d'une séance importée est accessible depuis l'historique", async ({
+    page,
+  }) => {
+    await seConnecter(page, "lea@example.com");
+    await page.getByRole("link", { name: "Historique" }).click();
+
+    await page.getByText("Montre · 15,2 km · 148 bpm").first().click();
+
+    await expect(page).toHaveURL(/\/seances\//);
+    await expect(page.getByText("148 bpm")).toBeVisible();
+
+    // Le retour ramène à l'historique, pas à l'accueil.
+    await page.getByLabel("Retour").click();
+    await expect(page.getByRole("heading", { name: "Historique" })).toBeVisible();
   });
 });
 

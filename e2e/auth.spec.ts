@@ -38,3 +38,15 @@ test("l'inscription adapte le formulaire au rôle choisi", async ({ page }) => {
   await page.getByRole("radio", { name: /^Athlète/ }).click();
   await expect(page.getByLabel(/Code coach/)).toBeVisible();
 });
+
+// Régression : sous 16px, Safari iOS zoome la page au focus d'un champ et
+// ne dézoome pas toujours après (signalé depuis un téléphone).
+test("les champs de saisie n'ont pas une police sous le seuil de zoom iOS", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  const taille = await page
+    .getByLabel("Email")
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(taille).toBeGreaterThanOrEqual(16);
+});
