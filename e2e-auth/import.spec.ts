@@ -85,6 +85,18 @@ test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page })
   await expect(page.getByText("42 min").first()).toBeVisible();
 });
 
+// Régression : .tcx n'a pas de type MIME enregistré à l'IANA, et le
+// sélecteur de fichier ne déclarait un type que pour le GPX — iOS pouvait
+// griser les fichiers TCX faute de type reconnu (signalé depuis un téléphone).
+test("le sélecteur de fichier accepte aussi le TCX", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+  await page.getByRole("button", { name: "Importer un fichier de montre" }).click();
+
+  const accept = await page.getByLabel(/Fichier exporté/).getAttribute("accept");
+  expect(accept).toContain(".tcx");
+  expect(accept).toContain("application/vnd.garmin.tcx+xml");
+});
+
 test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   await seConnecter(page, "sofia@example.com");
 
