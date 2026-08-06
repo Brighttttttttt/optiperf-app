@@ -62,7 +62,7 @@ export function FreeSessionSheet() {
             <label className={labelClass} htmlFor="free-type">
               Type
             </label>
-            <select id="free-type" name="type" className={inputClass}>
+            <select id="free-type" name="type" className={`${inputClass} h-12`}>
               {SESSION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -81,7 +81,10 @@ export function FreeSessionSheet() {
               defaultValue={toISODate(new Date())}
               max={toISODate(new Date())}
               required
-              className={inputClass}
+              // Hauteur explicite : sur iOS, le contrôle natif de date ignore
+              // en partie le padding et rend plus haut qu'un <select> avec
+              // les mêmes classes.
+              className={`${inputClass} h-12`}
             />
           </div>
         </div>

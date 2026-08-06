@@ -169,6 +169,22 @@ test.describe("Athlète", () => {
     await expect(page.locator('svg[role="img"]').first()).toBeVisible();
   });
 
+  // Régression : la barre disparaissait volontairement sur un fil de
+  // discussion, jusqu'à ce que le retrait soit signalé comme gênant plutôt
+  // que voulu.
+  test("la barre de navigation reste visible dans une conversation", async ({
+    page,
+  }) => {
+    await seConnecter(page, "lea@example.com");
+    await page.getByRole("link", { name: "Messages" }).click();
+    await page.getByText("Camille Dupont").click();
+
+    await expect(page.getByText("Camille Dupont")).toBeVisible();
+    await expect(
+      page.locator('nav[aria-label="Navigation principale"]')
+    ).toBeVisible();
+  });
+
   test("un message envoyé apparaît dans le fil", async ({ page }) => {
     const texte = `Message auto ${Date.now()}`;
 
@@ -203,6 +219,21 @@ test.describe("Athlète", () => {
     await expect(pageCoach.getByText("Léa Martin t'a écrit").first()).toBeVisible();
     await expect(pageCoach.getByText(texte)).toBeVisible();
     await contexteCoach.close();
+  });
+
+  // Régression : sur iOS, le contrôle natif de date ignore en partie le
+  // padding CSS et rend plus haut qu'un <select> avec les mêmes classes.
+  test("les champs type et date de la séance libre ont la même hauteur", async ({
+    page,
+  }) => {
+    await seConnecter(page, "lea@example.com");
+    await page.getByRole("button", { name: "Ajouter une séance libre" }).click();
+
+    const type = await page.getByLabel("Type").boundingBox();
+    const date = await page.getByLabel("Date").boundingBox();
+    expect(type).not.toBeNull();
+    expect(date).not.toBeNull();
+    expect(Math.abs(date!.height - type!.height)).toBeLessThanOrEqual(1);
   });
 
   test("le détail d'une séance importée est accessible depuis l'historique", async ({

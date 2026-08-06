@@ -110,7 +110,12 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
           ref={champFichier}
           id="import-fichier"
           type="file"
-          accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml"
+          // iOS n'a aucun type de fichier associé à .tcx : toute restriction
+          // par type (extension ou MIME) grise ces fichiers dans le
+          // sélecteur natif, GPX y compris parfois. La validation se fait de
+          // toute façon sur le contenu (lireFichierActivite), pas sur ce que
+          // l'utilisateur a choisi de sélectionner.
+          accept="*/*"
           onChange={(e) => analyser(e.target.files?.[0])}
           className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-pine-soft file:px-3 file:py-1.5 file:text-pine file:font-semibold`}
         />

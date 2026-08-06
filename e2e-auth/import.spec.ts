@@ -58,6 +58,30 @@ async function deposer(page: Page, contenu: string, nom = "seance-test.gpx") {
   });
 }
 
+/**
+ * TCX minimal, sur le modèle des fixtures réelles
+ * (src/lib/__exemples__/*.tcx) : un seul tour porte les totaux.
+ */
+function tcxDuJour(graine = crypto.randomUUID(), decalageMinutes = 0) {
+  const jour = new Date();
+  const debut = new Date(
+    Date.UTC(jour.getFullYear(), jour.getMonth(), jour.getDate(), 11, decalageMinutes)
+  ).toISOString();
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- ${graine} -->
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+ <Activities><Activity Sport="Running">
+  <Id>${debut}</Id>
+  <Lap StartTime="${debut}">
+   <TotalTimeSeconds>1500.0</TotalTimeSeconds>
+   <DistanceMeters>5000.0</DistanceMeters>
+   <AverageHeartRateBpm><Value>150</Value></AverageHeartRateBpm>
+  </Lap>
+ </Activity></Activities>
+</TrainingCenterDatabase>`;
+}
+
 test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page }) => {
   await seConnecter(page, "sofia@example.com");
   await deposer(page, gpxDuJour());
@@ -85,16 +109,33 @@ test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page })
   await expect(page.getByText("42 min").first()).toBeVisible();
 });
 
-// Régression : .tcx n'a pas de type MIME enregistré à l'IANA, et le
-// sélecteur de fichier ne déclarait un type que pour le GPX — iOS pouvait
-// griser les fichiers TCX faute de type reconnu (signalé depuis un téléphone).
-test("le sélecteur de fichier accepte aussi le TCX", async ({ page }) => {
+// Régression : .tcx n'a aucun type de fichier associé sur iOS. Restreindre
+// l'attribut accept (même à plusieurs types XML génériques) grisait ces
+// fichiers dans le sélecteur natif — parfois le GPX aussi (signalé depuis un
+// téléphone, persistant après un premier correctif moins radical).
+test("le sélecteur de fichier n'exclut aucun type de fichier", async ({ page }) => {
   await seConnecter(page, "sofia@example.com");
   await page.getByRole("button", { name: "Importer un fichier de montre" }).click();
 
   const accept = await page.getByLabel(/Fichier exporté/).getAttribute("accept");
-  expect(accept).toContain(".tcx");
-  expect(accept).toContain("application/vnd.garmin.tcx+xml");
+  expect(accept).toBe("*/*");
+});
+
+// Le dépôt d'un GPX a sa propre couverture ailleurs dans ce fichier ; celui
+// d'un TCX ne l'avait jamais eue alors que c'est lui qui posait problème.
+test("un fichier TCX est importable de bout en bout", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+  await deposer(page, tcxDuJour(crypto.randomUUID(), 33), "montre.tcx");
+
+  await expect(page.getByText("25 min · 5,0 km · 150 bpm")).toBeVisible();
+
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByRole("radio", { name: "5", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Importer un fichier de montre" })
+  ).toBeVisible();
 });
 
 test("le même fichier déposé deux fois est refusé", async ({ page }) => {

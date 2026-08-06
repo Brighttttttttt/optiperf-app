@@ -39,7 +39,10 @@ export function EditSessionForm({ session }: { session: TrainingSession }) {
             type="date"
             required
             defaultValue={session.date}
-            className={inputClass}
+            // Hauteur explicite : sur iOS, le contrôle natif de date ignore
+            // en partie le padding et rend plus haut qu'un <select> avec les
+            // mêmes classes.
+            className={`${inputClass} h-12`}
           />
         </div>
         <div>
@@ -50,7 +53,7 @@ export function EditSessionForm({ session }: { session: TrainingSession }) {
             id="edit-type"
             name="type"
             defaultValue={session.type}
-            className={inputClass}
+            className={`${inputClass} h-12`}
           >
             {SESSION_TYPES.map((t) => (
               <option key={t.value} value={t.value}>

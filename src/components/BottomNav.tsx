@@ -107,9 +107,6 @@ export function BottomNav({
     };
   }, [userId, router]);
 
-  // Plein écran conversation : la barre laisse toute la place au fil.
-  if (/^\/messages\/./.test(pathname)) return null;
-
   const counts = { messages: unreadMessages, notifications: unreadNotifications };
   const tabs = TABS[role];
 
