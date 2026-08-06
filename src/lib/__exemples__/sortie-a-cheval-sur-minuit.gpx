@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Départ 23 h 40 à Paris, arrivée 00 h 20 le lendemain. L'activité appartient
+  à la soirée du 4 août : c'est le jour de départ qui compte, sinon la séance
+  se range dans la mauvaise semaine et fausse la charge hebdomadaire.
+-->
+<gpx creator="Garmin Connect" version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Sortie de nuit</name>
+    <trkseg>
+      <trkpt lat="48.8566000" lon="2.3522000">
+        <time>2026-08-04T21:40:00Z</time>
+      </trkpt>
+      <trkpt lat="48.8600000" lon="2.3522000">
+        <time>2026-08-04T22:20:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
