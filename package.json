@@ -14,7 +14,8 @@
     "test:e2e:auth": "playwright test --project=authentifie",
     "test:prod": "playwright test --project=production",
     "smoke": "node scripts/smoke-prod.mjs",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "demo": "node scripts/demo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

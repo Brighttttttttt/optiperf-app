@@ -13,7 +13,8 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - `npm run test:prod` — contrôle d'affichage dans un vrai navigateur contre le site en ligne, rejoué après chaque déploiement. Les tests locaux sont trop rapides pour reproduire les défauts liés au flux de rendu : ce contrôle est le seul à voir qu'une page répond correctement tout en n'affichant rien (incident #44).
 - `npm run lint` et `npm run typecheck` — exigés par la CI
 - `npm run smoke` — test de fumée contre la production déployée (routage CDN, en-têtes, POST des server actions) ; rejoué automatiquement après chaque déploiement
-- `npm run seed` — données de démo (demande `SUPABASE_SECRET_KEY` dans `.env.local`)
+- `npm run seed` — données de démo pour les tests e2e authentifiés (3 athlètes dont noms et emails sont lus en dur dans `e2e-auth/*.spec.ts` : ne pas les changer sans mettre ces tests à jour). Cible la base pointée par `.env.local` (demande `SUPABASE_SECRET_KEY`) — en CI, une base locale fraîche ; en local, la base réelle si `.env.local` la pointe.
+- `npm run demo` — données de démo pour parcourir l'app déployée soi-même (1 coach + 5 athlètes, mot de passe unique, indépendant de `npm run seed`). Relançable : remplace les séances/messages/objectifs des comptes de démo, jamais ceux d'un autre compte.
 
 ## Architecture
 
