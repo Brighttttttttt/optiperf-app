@@ -7,7 +7,7 @@ import { SessionRow } from "@/components/SessionRow";
 import { TrendCharts } from "@/components/TrendCharts";
 import { weeklySeries } from "@/lib/metrics";
 import { addDays, toISODate } from "@/lib/dates";
-import type { TrainingSession } from "@/lib/types";
+import type { Activity, TrainingSession } from "@/lib/types";
 
 function monthLabel(iso: string): string {
   return new Date(`${iso}T12:00:00`).toLocaleDateString("fr-FR", {
@@ -23,7 +23,7 @@ export default async function HistoryPage() {
 
   const now = new Date();
 
-  const [historyRes, trendRes] = await Promise.all([
+  const [historyRes, trendRes, activitiesRes] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
@@ -39,10 +39,25 @@ export default async function HistoryPage() {
       .eq("athlete_id", user.id)
       .gte("date", toISODate(addDays(now, -84)))
       .order("date"),
+    // Ce que la montre a relevé, pour les séances qui en viennent.
+    supabase
+      .from("activities")
+      .select("*")
+      .eq("athlete_id", user.id)
+      .not("session_id", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(200),
   ]);
 
   const sessions = (historyRes.data ?? []) as TrainingSession[];
   const trend = (trendRes.data ?? []) as TrainingSession[];
+  // Une séance peut en agréger plusieurs ; la plus récente la représente.
+  const activityBySession = new Map<string, Activity>();
+  for (const a of (activitiesRes.data ?? []) as Activity[]) {
+    if (a.session_id && !activityBySession.has(a.session_id)) {
+      activityBySession.set(a.session_id, a);
+    }
+  }
 
   // Regroupe par mois pour la lecture chronologique.
   const groups: { label: string; sessions: TrainingSession[] }[] = [];
@@ -81,7 +96,7 @@ export default async function HistoryPage() {
               </h2>
               <Card className="divide-y divide-line">
                 {g.sessions.map((s) => (
-                  <SessionRow key={s.id} session={s} />
+                  <SessionRow key={s.id} session={s} activity={activityBySession.get(s.id)} />
                 ))}
               </Card>
             </Fragment>

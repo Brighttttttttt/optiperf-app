@@ -12,7 +12,7 @@ import { TrendCharts } from "@/components/TrendCharts";
 import { computeMetrics, weeklySeries } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
 import { btnGhost, btnPrimary } from "@/lib/styles";
-import type { Objective, Profile, TrainingSession } from "@/lib/types";
+import type { Activity, Objective, Profile, TrainingSession } from "@/lib/types";
 
 export default async function AthletePage({
   params,
@@ -33,7 +33,7 @@ export default async function AthletePage({
     .maybeSingle<Profile>();
   if (!athlete) redirect("/");
 
-  const [sessionsRes, objectivesRes] = await Promise.all([
+  const [sessionsRes, objectivesRes, activitiesRes] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
@@ -48,10 +48,27 @@ export default async function AthletePage({
       .select("*")
       .eq("athlete_id", id)
       .order("target_date", { ascending: true }),
+    // Le coach voit le relevé de la montre, pas la trace : un résumé suffit à
+    // lire la séance, et la trace poserait des questions de vie privée que ces
+    // chiffres ne posent pas.
+    supabase
+      .from("activities")
+      .select("*")
+      .eq("athlete_id", id)
+      .not("session_id", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(200),
   ]);
 
   const sessions = (sessionsRes.data ?? []) as TrainingSession[];
   const objectives = (objectivesRes.data ?? []) as Objective[];
+  // Une séance peut en agréger plusieurs ; la plus récente la représente.
+  const activityBySession = new Map<string, Activity>();
+  for (const a of (activitiesRes.data ?? []) as Activity[]) {
+    if (a.session_id && !activityBySession.has(a.session_id)) {
+      activityBySession.set(a.session_id, a);
+    }
+  }
   const metrics = computeMetrics(sessions, now);
   const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
   const history = sessions
@@ -181,7 +198,7 @@ export default async function AthletePage({
           ) : (
             <Card className="divide-y divide-line">
               {history.map((s) => (
-                <SessionRow key={s.id} session={s} />
+                <SessionRow key={s.id} session={s} activity={activityBySession.get(s.id)} />
               ))}
             </Card>
           )}

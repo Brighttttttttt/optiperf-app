@@ -106,6 +106,18 @@ test.describe("Coach", () => {
     await expect(pageAthlete.getByText(titre)).toBeVisible();
     await contexteAthlete.close();
   });
+
+  test("la fiche athlète montre ce que la montre a relevé", async ({ page }) => {
+    await seConnecter(page, "coach@example.com");
+    await page.getByText("Léa Martin").click();
+
+    // Le coach lit le résumé — durée, distance, fréquence — mais jamais la
+    // trace : ces chiffres suffisent à lire la séance sans poser les mêmes
+    // questions de vie privée.
+    await expect(
+      page.getByText("Montre · 15,2 km · 148 bpm").first()
+    ).toBeVisible();
+  });
 });
 
 test.describe("Athlète", () => {
@@ -116,6 +128,17 @@ test.describe("Athlète", () => {
     await expect(page.getByText("Volume")).toBeVisible();
     await expect(page.getByText("À venir")).toBeVisible();
     await expect(page.getByText(/Chargement/)).toBeHidden();
+  });
+
+  test("l'origine d'une séance importée se lit dans l'historique", async ({
+    page,
+  }) => {
+    await seConnecter(page, "lea@example.com");
+    await page.getByRole("link", { name: "Historique" }).click();
+
+    // En toutes lettres, sur sa propre ligne : l'athlète doit distinguer ce
+    // qu'il a déclaré de ce qui a été mesuré, sans avoir à survoler.
+    await expect(page.getByText("Montre · 15,2 km · 148 bpm").first()).toBeVisible();
   });
 
   test("l'historique affiche les séances passées et les courbes", async ({
