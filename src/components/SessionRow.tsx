@@ -1,10 +1,33 @@
 import { RpeDot } from "./ui";
 import { formatDayShort, formatDuration } from "@/lib/dates";
-import { sessionTypeLabel, type TrainingSession } from "@/lib/types";
+import { formatDistance } from "@/lib/activites";
+import {
+  activitySourceLabel,
+  sessionTypeLabel,
+  type Activity,
+  type TrainingSession,
+} from "@/lib/types";
 
-/** Ligne d'historique d'une séance réalisée ou manquée. */
-export function SessionRow({ session }: { session: TrainingSession }) {
+/**
+ * Ligne d'historique d'une séance réalisée ou manquée.
+ *
+ * Quand une montre est à l'origine du compte rendu, son résumé s'affiche sur
+ * sa propre ligne : en toutes lettres et non au survol, pour rester lisible
+ * au doigt comme au lecteur d'écran. Ce qui est mesuré doit se distinguer de
+ * ce qui est déclaré.
+ */
+export function SessionRow({
+  session,
+  activity,
+}: {
+  session: TrainingSession;
+  activity?: Activity | null;
+}) {
   const duration = session.duration_actual_min ?? session.duration_planned_min;
+  const releve = activity && [
+    activity.distance_m !== null ? formatDistance(activity.distance_m) : null,
+    activity.avg_heart_rate !== null ? `${activity.avg_heart_rate} bpm` : null,
+  ].filter(Boolean).join(" · ");
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <p className="w-12 shrink-0 pt-0.5 font-display text-[17px] font-semibold tabular-nums">
@@ -17,6 +40,12 @@ export function SessionRow({ session }: { session: TrainingSession }) {
           {duration ? ` · ${formatDuration(duration)}` : ""}
           {session.coach_id === null ? " · libre" : ""}
         </p>
+        {activity && (
+          <p className="text-[13px] text-ink-soft">
+            {activitySourceLabel(activity.source)}
+            {releve ? ` · ${releve}` : ""}
+          </p>
+        )}
         {session.athlete_comment && (
           <p className="mt-1 text-[13px] text-ink-soft italic">
             « {session.athlete_comment} »

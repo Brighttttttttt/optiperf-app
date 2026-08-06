@@ -88,7 +88,9 @@ export type Message = {
  * export de montre ; les autres viendront avec les connexions déléguées.
  */
 export const ACTIVITY_SOURCES = [
-  { value: "fichier", label: "Fichier" },
+  // Ce que l'athlète comprend, et non le moyen technique : il importe sa
+  // montre, la valeur stockée restant `fichier`.
+  { value: "fichier", label: "Montre" },
   { value: "strava", label: "Strava" },
   { value: "garmin", label: "Garmin" },
   { value: "coros", label: "Coros" },
