@@ -17,6 +17,9 @@ import { formatDayLong, formatDuration } from "@/lib/dates";
 
 type Lue = ActiviteLue & { externalId: string; fileName: string };
 
+/** Rattachement à aucune séance existante. Le serveur le traite comme absent. */
+const NOUVELLE = "nouvelle";
+
 /**
  * Dépôt d'un fichier de montre.
  *
@@ -50,6 +53,9 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
   async function analyser(fichier: File | undefined) {
     setErreurLecture(null);
     setLue(null);
+    // Un autre fichier, un autre jour : les candidates au rattachement
+    // changent, le choix précédent n'a plus de sens.
+    setSeance("");
     if (!fichier) return;
 
     const contenu = await fichier.text();
@@ -68,10 +74,14 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
   // Les séances de ce jour-là, seules candidates au rattachement.
   const candidates = lue ? sessions.filter((s) => s.date === lue.date) : [];
   // Une seule : proposée d'emblée. Plusieurs : à l'athlète de dire laquelle,
-  // lui seul sait ce qu'il a fait.
-  const choixInitial = candidates.length === 1 ? candidates[0].id : "";
-  const seanceChoisie = seance || (candidates.length === 1 ? choixInitial : "");
-  const nouvelleSeance = seanceChoisie === "";
+  // lui seul sait ce qu'il a fait — la valeur vide de l'option d'invite reste
+  // alors en place, et `required` empêche d'enregistrer sans avoir choisi.
+  // « Nouvelle séance » porte donc une valeur propre : deux options vides
+  // rendraient ce choix légitime indistinguable de l'absence de choix.
+  const defaut =
+    candidates.length === 1 ? candidates[0].id : candidates.length === 0 ? NOUVELLE : "";
+  const seanceChoisie = seance || defaut;
+  const nouvelleSeance = seanceChoisie === NOUVELLE;
 
   if (!open) {
     return (
@@ -155,7 +165,7 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
                     {s.title}
                   </option>
                 ))}
-                <option value="">Aucune — nouvelle séance</option>
+                <option value={NOUVELLE}>Aucune — nouvelle séance</option>
               </select>
             </div>
           )}

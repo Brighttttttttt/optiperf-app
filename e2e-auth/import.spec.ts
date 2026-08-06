@@ -92,7 +92,11 @@ test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   // mais rester la même d'un dépôt à l'autre — c'est tout l'objet du test.
   const contenu = gpxDuJour(crypto.randomUUID(), 7);
 
+  // Sans rattachement : ce test couvre au passage la création d'une séance
+  // libre, chemin que le premier ne prend pas. Le choix est explicite, car
+  // plusieurs séances peuvent tomber le même jour selon le calendrier.
   await deposer(page, contenu, "doublon.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
   await page.getByRole("radio", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(
@@ -100,6 +104,7 @@ test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   ).toBeVisible();
 
   await deposer(page, contenu, "doublon.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
   await page.getByRole("radio", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
 

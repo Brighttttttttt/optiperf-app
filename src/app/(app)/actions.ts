@@ -462,7 +462,10 @@ export async function importActivity(
   // Rattachement : soit une séance existante que l'athlète a désignée, soit
   // une séance libre créée pour l'occasion. Jamais de choix silencieux — si
   // deux séances tombent le même jour, lui seul sait laquelle il a faite.
-  const sessionId = String(formData.get("session_id") ?? "");
+  // « nouvelle » est la sentinelle du formulaire : le select ne peut pas
+  // utiliser la valeur vide pour ce choix, elle y signale l'absence de choix.
+  const choixSeance = String(formData.get("session_id") ?? "");
+  const sessionId = choixSeance === "nouvelle" ? "" : choixSeance;
   const comment = optionalText(formData, "athlete_comment", LIMITS.comment);
   const compteRendu = {
     status: "completed" as const,
