@@ -193,12 +193,15 @@ test.describe("Athlète", () => {
     await expect(page.getByText(texte)).toBeVisible();
 
     // Côté coach, dans une session distincte : la notification déclenchée
-    // par le trigger sur `messages` (migration 008).
+    // par le trigger sur `messages` (migration 008). Le corps du message
+    // identifie la bonne notification — le titre seul se répète d'un
+    // message à l'autre, y compris ceux des tentatives précédentes.
     const contexteCoach = await browser.newContext();
     const pageCoach = await contexteCoach.newPage();
     await seConnecter(pageCoach, "coach@example.com");
     await pageCoach.getByRole("link", { name: "Notifs" }).click();
-    await expect(pageCoach.getByText("Léa Martin t'a écrit")).toBeVisible();
+    await expect(pageCoach.getByText("Léa Martin t'a écrit").first()).toBeVisible();
+    await expect(pageCoach.getByText(texte)).toBeVisible();
     await contexteCoach.close();
   });
 

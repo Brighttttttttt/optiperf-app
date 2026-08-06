@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [master]
+  # Déclenché par la merge queue : elle recrée ce contexte pour chaque PR mise
+  # à jour contre master avant de la fusionner, sans quoi le check requis
+  # n'aurait jamais l'occasion de tourner sur cette branche temporaire.
+  merge_group:
 
 # Moindre privilège : la CI ne fait que lire le dépôt.
 permissions:
