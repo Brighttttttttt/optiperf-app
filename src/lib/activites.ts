@@ -38,6 +38,27 @@ export const TAILLE_MAX_OCTETS = 12_000_000;
 
 const echec = (erreur: string): LectureActivite => ({ ok: false, erreur });
 
+/** 9984 → « 10,0 km », 850 → « 850 m ». */
+export function formatDistance(metres: number): string {
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
+}
+
+/**
+ * Empreinte du contenu, qui sert d'identifiant de source : c'est elle qui
+ * rend un second dépôt du même fichier détectable, la contrainte SQL faisant
+ * le reste. Calculée par le navigateur, comme la lecture.
+ */
+export async function empreinteFichier(contenu: string): Promise<string> {
+  const condense = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(contenu)
+  );
+  return [...new Uint8Array(condense)]
+    .map((o) => o.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /**
  * Contenu textuel de chaque `<nom>`, quel que soit le préfixe d'espace de
  * noms — les exports Garmin écrivent `<ns3:TotalTimeSeconds>`.

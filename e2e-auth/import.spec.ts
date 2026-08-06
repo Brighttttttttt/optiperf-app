@@ -1,0 +1,121 @@
+import { expect, test, type Page } from "@playwright/test";
+
+/**
+ * Parcours d'import d'un fichier de montre, de bout en bout.
+ *
+ * Le fichier est fabriqué ici plutôt que repris des exemples réels : ceux-ci
+ * portent une date fixe, alors que le rattachement demande une activité
+ * tombant le même jour qu'une séance planifiée. L'analyse des exports réels
+ * est couverte par les tests unitaires ; ce qui se joue ici, c'est le
+ * parcours.
+ */
+
+const MOT_DE_PASSE = "optiperf-demo";
+
+/**
+ * Aujourd'hui à 10 h UTC, soit midi à Paris : aucun risque de bascule de jour.
+ *
+ * La graine rend l'empreinte du fichier unique à chaque exécution. Sans elle,
+ * une reprise après échec buterait sur l'anti-doublon de l'exécution
+ * précédente et échouerait pour une raison qui n'a rien à voir.
+ */
+function gpxDuJour(graine = crypto.randomUUID(), decalageMinutes = 0) {
+  const jour = new Date();
+  const debut = new Date(
+    Date.UTC(jour.getFullYear(), jour.getMonth(), jour.getDate(), 10, decalageMinutes)
+  );
+  const point = (minutes: number, lat: number, hr: number) =>
+    `<trkpt lat="${lat.toFixed(7)}" lon="2.3522000">
+       <time>${new Date(debut.getTime() + minutes * 60_000).toISOString()}</time>
+       <extensions><gpxtpx:hr>${hr}</gpxtpx:hr></extensions>
+     </trkpt>`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- ${graine} -->
+<gpx creator="Test" version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+ <trk><name>Séance de test</name><trkseg>
+  ${point(0, 48.8566, 140)}
+  ${point(21, 48.8616, 142)}
+  ${point(42, 48.8666, 144)}
+ </trkseg></trk>
+</gpx>`;
+}
+
+async function seConnecter(page: Page, email: string) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Mot de passe").fill(MOT_DE_PASSE);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page).toHaveURL(/\/$|\/\?/);
+}
+
+async function deposer(page: Page, contenu: string, nom = "seance-test.gpx") {
+  await page.getByRole("button", { name: "Importer un fichier de montre" }).click();
+  await page.getByLabel(/Fichier exporté/).setInputFiles({
+    name: nom,
+    mimeType: "application/gpx+xml",
+    buffer: Buffer.from(contenu, "utf8"),
+  });
+}
+
+test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+  await deposer(page, gpxDuJour());
+
+  // L'aperçu, avant tout enregistrement : l'athlète doit pouvoir constater
+  // que la durée est juste avant de valider.
+  await expect(page.getByText("42 min · 1,1 km · 142 bpm")).toBeVisible();
+
+  // La séance planifiée du jour est proposée au rattachement.
+  await page.getByLabel("Rattacher à").selectOption({ label: "Séance du jour" });
+
+  // La seule chose qu'aucune montre ne mesure.
+  await page.getByRole("radio", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  // Le formulaire se referme : l'enregistrement a abouti.
+  await expect(
+    page.getByRole("button", { name: "Importer un fichier de montre" })
+  ).toBeVisible();
+
+  // Et la séance est bien passée au réalisé, avec la durée du fichier.
+  await page.getByRole("link", { name: "Historique" }).click();
+  await expect(page.getByRole("heading", { name: "Historique" })).toBeVisible();
+  await expect(page.getByText("Séance du jour")).toBeVisible();
+  await expect(page.getByText("42 min").first()).toBeVisible();
+});
+
+test("le même fichier déposé deux fois est refusé", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+
+  // Un fichier propre à ce test : son empreinte ne doit croiser aucune autre,
+  // mais rester la même d'un dépôt à l'autre — c'est tout l'objet du test.
+  const contenu = gpxDuJour(crypto.randomUUID(), 7);
+
+  // Sans rattachement : ce test couvre au passage la création d'une séance
+  // libre, chemin que le premier ne prend pas. Le choix est explicite, car
+  // plusieurs séances peuvent tomber le même jour selon le calendrier.
+  await deposer(page, contenu, "doublon.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Importer un fichier de montre" })
+  ).toBeVisible();
+
+  await deposer(page, contenu, "doublon.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(page.getByText("Cette séance a déjà été importée.")).toBeVisible();
+});
+
+test("un fichier illisible est refusé avant tout enregistrement", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+  await deposer(page, "<html><body>Erreur 404</body></html>", "pasunetrace.gpx");
+
+  await expect(page.getByText(/n'est pas un GPX exploitable/)).toBeVisible();
+  // Aucun formulaire ne s'ouvre : il n'y a rien à enregistrer.
+  await expect(page.getByRole("button", { name: "Enregistrer" })).toBeHidden();
+});

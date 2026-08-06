@@ -194,6 +194,19 @@ async function main() {
       }
     }
   }
+  // Une séance planifiée aujourd'hui pour Sofia : le parcours d'import a
+  // besoin d'une candidate au rattachement, à une date qui ne vieillira pas.
+  // Sofia plutôt que Léa, dont les activités servent aux comptages.
+  sessions.push({
+    athlete_id: athleteIds[2],
+    coach_id: coachId,
+    date: toISO(now),
+    title: "Séance du jour",
+    type: "endurance",
+    duration_planned_min: 40,
+    status: "planned",
+  });
+
   verifier("séances", await admin.from("sessions").insert(sessions));
 
   // Deux activités pour Léa : l'une rattachée à une séance, l'autre non —

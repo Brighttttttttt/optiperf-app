@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, EmptyState, PageHeader, StatTile, StatusBadge } from "@/components/ui";
 import { SessionActions } from "@/components/SessionActions";
 import { FreeSessionSheet } from "@/components/FreeSessionSheet";
+import { ImportActivitySheet } from "@/components/ImportActivitySheet";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDayRelative, formatDuration, toISODate } from "@/lib/dates";
@@ -160,7 +161,13 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
           )}
         </section>
 
-        <FreeSessionSheet />
+        <div className="space-y-2.5">
+          {/* Les séances déjà chargées servent au rattachement : le jour de
+              l'activité n'étant connu qu'après lecture du fichier, les
+              proposer sans aller-retour serveur suppose de les avoir déjà. */}
+          <ImportActivitySheet sessions={sessions} />
+          <FreeSessionSheet />
+        </div>
       </div>
     </div>
   );

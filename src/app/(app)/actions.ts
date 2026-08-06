@@ -384,6 +384,143 @@ export async function deleteOwnAccount(
   redirect("/login");
 }
 
+// ---------- Activités importées ----------
+
+/**
+ * Enregistre une activité lue par le navigateur.
+ *
+ * Le fichier n'arrive jamais jusqu'ici : il est analysé côté client, ce qui
+ * évite de transporter plusieurs mégaoctets et donne son aperçu à l'athlète
+ * avant qu'il ne valide. Ne transitent que les valeurs retenues — donc
+ * modifiables par qui les envoie, mais c'est déjà le cas d'une séance saisie
+ * à la main : personne d'autre que l'athlète n'écrit son propre compte rendu.
+ * Elles sont malgré tout bornées ci-dessous, pour que la base ne reçoive rien
+ * d'absurde.
+ *
+ * L'activité est insérée **avant** que la séance ne soit touchée : c'est elle
+ * qui porte la contrainte d'unicité, et un doublon doit être refusé sans avoir
+ * rien créé au passage.
+ */
+export async function importActivity(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const externalId = text(formData, "external_id", LIMITS.externalId);
+  const startedAt = String(formData.get("started_at") ?? "");
+  const date = String(formData.get("date") ?? "");
+  const duration = Number(formData.get("duration_min"));
+  const rpe = Number(formData.get("rpe"));
+
+  if (!externalId || !startedAt || !date) {
+    return { error: "Dépose à nouveau le fichier : sa lecture s'est perdue." };
+  }
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 24 * 60) {
+    return { error: "La durée lue dans le fichier est inexploitable." };
+  }
+  if (!Number.isFinite(rpe) || rpe < 1 || rpe > 10) {
+    return { error: "Choisis ton effort ressenti (RPE) de 1 à 10." };
+  }
+
+  const fileName = optionalText(formData, "file_name", LIMITS.fileName);
+  if (fileName === undefined) return tooLong("Le nom du fichier", LIMITS.fileName);
+
+  const nombreOuNull = (champ: string, min: number, max: number) => {
+    const brut = String(formData.get(champ) ?? "").trim();
+    if (brut === "") return null;
+    const valeur = Number(brut);
+    return Number.isFinite(valeur) && valeur >= min && valeur <= max
+      ? Math.round(valeur)
+      : null;
+  };
+
+  const { data: activite, error: erreurActivite } = await supabase
+    .from("activities")
+    .insert({
+      athlete_id: user.id,
+      source: "fichier",
+      external_id: externalId,
+      file_name: fileName,
+      started_at: startedAt,
+      date,
+      duration_min: Math.round(duration),
+      distance_m: nombreOuNull("distance_m", 0, 1_000_000),
+      avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
+    })
+    .select("id")
+    .single();
+
+  if (erreurActivite) {
+    // 23505 : la contrainte unique (athlete_id, source, external_id).
+    if (erreurActivite.code === "23505") {
+      return { error: "Cette séance a déjà été importée." };
+    }
+    return { error: "Impossible d'enregistrer l'activité." };
+  }
+
+  // Rattachement : soit une séance existante que l'athlète a désignée, soit
+  // une séance libre créée pour l'occasion. Jamais de choix silencieux — si
+  // deux séances tombent le même jour, lui seul sait laquelle il a faite.
+  // « nouvelle » est la sentinelle du formulaire : le select ne peut pas
+  // utiliser la valeur vide pour ce choix, elle y signale l'absence de choix.
+  const choixSeance = String(formData.get("session_id") ?? "");
+  const sessionId = choixSeance === "nouvelle" ? "" : choixSeance;
+  const comment = optionalText(formData, "athlete_comment", LIMITS.comment);
+  const compteRendu = {
+    status: "completed" as const,
+    rpe,
+    duration_actual_min: Math.round(duration),
+    athlete_comment: comment === undefined ? null : comment,
+    completed_at: new Date().toISOString(),
+  };
+
+  let seanceLiee = sessionId;
+
+  if (sessionId) {
+    const { error } = await supabase
+      .from("sessions")
+      .update(compteRendu)
+      .eq("id", sessionId)
+      .eq("athlete_id", user.id);
+    if (error) {
+      return {
+        error:
+          "L'activité est enregistrée, mais le rattachement à la séance a échoué.",
+      };
+    }
+  } else {
+    const titre = text(formData, "title", LIMITS.title);
+    if (titre === null) return tooLong("Le titre", LIMITS.title);
+    const { data: creee, error } = await supabase
+      .from("sessions")
+      .insert({
+        athlete_id: user.id,
+        coach_id: null,
+        date,
+        title: titre || "Séance importée",
+        type: String(formData.get("type") ?? "endurance"),
+        ...compteRendu,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      return {
+        error: "L'activité est enregistrée, mais la séance n'a pas pu être créée.",
+      };
+    }
+    seanceLiee = creee.id;
+  }
+
+  await supabase
+    .from("activities")
+    .update({ session_id: seanceLiee })
+    .eq("id", activite.id);
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 // ---------- Notifications ----------
 
 export async function markAllNotificationsRead() {

@@ -27,9 +27,14 @@ function entetes(jeton: string) {
   return { apikey: CLE, Authorization: `Bearer ${jeton}`, "Content-Type": "application/json" };
 }
 
+/**
+ * Seules les activités du peuplement sont comptées : le parcours d'import
+ * (import.spec.ts) tourne en parallèle et en crée d'autres. Compter tout
+ * rendrait ces tests dépendants de l'ordre d'exécution.
+ */
 async function lireActivites(request: APIRequestContext, jeton: string) {
   const reponse = await request.get(
-    `${URL}/rest/v1/activities?select=id,athlete_id,session_id,source,external_id`,
+    `${URL}/rest/v1/activities?select=id,athlete_id,session_id,source,external_id&external_id=like.demo-*`,
     { headers: entetes(jeton) }
   );
   expect(reponse.ok()).toBeTruthy();
