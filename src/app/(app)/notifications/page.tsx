@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
-import { IconCalendar, IconPulse, IconBell } from "@/components/Icons";
+import { IconCalendar, IconPulse, IconBell, IconChat } from "@/components/Icons";
 import { markAllNotificationsRead } from "@/app/(app)/actions";
 import { formatTimestamp } from "@/lib/dates";
 import { btnGhost } from "@/lib/styles";
@@ -12,6 +12,7 @@ import type { AppNotification } from "@/lib/types";
 function typeIcon(type: string) {
   if (type === "session_planned" || type === "week_unplanned") return IconCalendar;
   if (type === "session_completed") return IconPulse;
+  if (type === "message") return IconChat;
   return IconBell;
 }
 
