@@ -125,6 +125,7 @@ async function main() {
   console.log("→ Nettoyage des anciennes données de démo…");
   await admin.from("messages").delete().in("sender_id", allIds);
   await admin.from("notifications").delete().in("recipient_id", allIds);
+  await admin.from("activities").delete().in("athlete_id", athleteIds);
   await admin.from("sessions").delete().in("athlete_id", athleteIds);
   await admin.from("objectives").delete().in("athlete_id", athleteIds);
 
@@ -194,6 +195,56 @@ async function main() {
     }
   }
   verifier("séances", await admin.from("sessions").insert(sessions));
+
+  // Deux activités pour Léa : l'une rattachée à une séance, l'autre non —
+  // les deux cas que le modèle doit savoir porter.
+  console.log("→ Activités importées…");
+  const { data: derniereSeance } = await admin
+    .from("sessions")
+    .select("id, date")
+    .eq("athlete_id", athleteIds[0])
+    .eq("status", "completed")
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!derniereSeance) {
+    console.error(
+      "\n✘ activités — aucune séance terminée pour rattacher une activité." +
+        "\n   Le tirage des séances est aléatoire : relancer le peuplement." +
+        "\n   Sans ce rattachement, les tests d'isolation portent sur un jeu incomplet."
+    );
+    process.exit(1);
+  }
+
+  const activites = [
+    {
+      athlete_id: athleteIds[0],
+      session_id: derniereSeance.id,
+      source: "fichier",
+      external_id: "demo-sortie-longue",
+      file_name: "sortie-longue.gpx",
+      started_at: new Date(`${derniereSeance.date}T09:12:00Z`).toISOString(),
+      date: derniereSeance.date,
+      duration_min: 78,
+      distance_m: 15230,
+      avg_heart_rate: 148,
+    },
+    {
+      // Rattachée à rien : une sortie qui n'était pas au programme.
+      athlete_id: athleteIds[0],
+      session_id: null,
+      source: "fichier",
+      external_id: "demo-footing-libre",
+      file_name: "footing-libre.tcx",
+      started_at: new Date(addDays(now, -2).getTime() + 18 * 3600 * 1000).toISOString(),
+      date: toISO(addDays(now, -2)),
+      duration_min: 34,
+      distance_m: 6100,
+      avg_heart_rate: 132,
+    },
+  ];
+  verifier("activités", await admin.from("activities").insert(activites));
 
   // Les triggers ont généré une notification par insertion : on repart
   // d'une liste courte et crédible.
