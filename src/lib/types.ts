@@ -1,4 +1,4 @@
-/** Limites de longueur — miroir des contraintes SQL (migration 002). */
+/** Limites de longueur — miroir des contraintes SQL (migrations 002 et 007). */
 export const LIMITS = {
   fullName: 80,
   title: 120,
@@ -6,6 +6,8 @@ export const LIMITS = {
   comment: 4000,
   notes: 2000,
   message: 4000,
+  externalId: 200,
+  fileName: 200,
 } as const;
 
 export type Role = "coach" | "athlete";
@@ -79,6 +81,42 @@ export type Message = {
   content: string;
   created_at: string;
   read_at: string | null;
+};
+
+/**
+ * Provenance d'une activité importée. `fichier` est le dépôt manuel d'un
+ * export de montre ; les autres viendront avec les connexions déléguées.
+ */
+export const ACTIVITY_SOURCES = [
+  { value: "fichier", label: "Fichier" },
+  { value: "strava", label: "Strava" },
+  { value: "garmin", label: "Garmin" },
+  { value: "coros", label: "Coros" },
+] as const;
+
+export type ActivitySource = (typeof ACTIVITY_SOURCES)[number]["value"];
+
+export function activitySourceLabel(source: string): string {
+  return ACTIVITY_SOURCES.find((s) => s.value === source)?.label ?? source;
+}
+
+/**
+ * Ce qu'une montre a enregistré. Le lien vers une séance est facultatif : une
+ * activité peut rester non rattachée, et une séance en agréger plusieurs.
+ */
+export type Activity = {
+  id: string;
+  athlete_id: string;
+  session_id: string | null;
+  source: ActivitySource;
+  external_id: string;
+  file_name: string | null;
+  started_at: string;
+  date: string; // YYYY-MM-DD, jour vécu à Paris
+  duration_min: number;
+  distance_m: number | null;
+  avg_heart_rate: number | null;
+  created_at: string;
 };
 
 export type AppNotification = {
