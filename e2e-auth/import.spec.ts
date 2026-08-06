@@ -50,7 +50,8 @@ async function seConnecter(page: Page, email: string) {
 }
 
 async function deposer(page: Page, contenu: string, nom = "seance-test.gpx") {
-  await page.getByRole("button", { name: "Importer un fichier de montre" }).click();
+  await page.getByRole("button", { name: "Ajouter une séance" }).click();
+  await page.getByText("Fichier de montre").click();
   await page.getByLabel(/Fichier exporté/).setInputFiles({
     name: nom,
     mimeType: "application/gpx+xml",
@@ -99,7 +100,7 @@ test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page })
 
   // Le formulaire se referme : l'enregistrement a abouti.
   await expect(
-    page.getByRole("button", { name: "Importer un fichier de montre" })
+    page.getByRole("button", { name: "Ajouter une séance" })
   ).toBeVisible();
 
   // Et la séance est bien passée au réalisé, avec la durée du fichier.
@@ -115,7 +116,8 @@ test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page })
 // téléphone, persistant après un premier correctif moins radical).
 test("le sélecteur de fichier n'exclut aucun type de fichier", async ({ page }) => {
   await seConnecter(page, "sofia@example.com");
-  await page.getByRole("button", { name: "Importer un fichier de montre" }).click();
+  await page.getByRole("button", { name: "Ajouter une séance" }).click();
+  await page.getByText("Fichier de montre").click();
 
   const accept = await page.getByLabel(/Fichier exporté/).getAttribute("accept");
   expect(accept).toBe("*/*");
@@ -134,7 +136,7 @@ test("un fichier TCX est importable de bout en bout", async ({ page }) => {
   await page.getByRole("button", { name: "Enregistrer" }).click();
 
   await expect(
-    page.getByRole("button", { name: "Importer un fichier de montre" })
+    page.getByRole("button", { name: "Ajouter une séance" })
   ).toBeVisible();
 });
 
@@ -153,7 +155,7 @@ test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   await page.getByRole("radio", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(
-    page.getByRole("button", { name: "Importer un fichier de montre" })
+    page.getByRole("button", { name: "Ajouter une séance" })
   ).toBeVisible();
 
   await deposer(page, contenu, "doublon.gpx");

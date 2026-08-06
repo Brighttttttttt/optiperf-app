@@ -4,38 +4,25 @@ import { useActionState, useState } from "react";
 import { addFreeSession } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
-import { IconPlus } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
 import { LIMITS, SESSION_TYPES } from "@/lib/types";
 import { toISODate } from "@/lib/dates";
 
 /** Enregistrer une séance non planifiée par le coach. */
-export function FreeSessionSheet() {
-  const [open, setOpen] = useState(false);
+export function FreeSessionForm({
+  onCancel,
+  onDone,
+}: {
+  onCancel: () => void;
+  onDone: () => void;
+}) {
   const [rpe, setRpe] = useState<number | null>(null);
   const [state, action] = useActionState(addFreeSession, null);
 
-  // Referme le formulaire quand l'action serveur aboutit.
   const [prevState, setPrevState] = useState(state);
   if (state !== prevState) {
     setPrevState(state);
-    if (state?.ok) {
-      setOpen(false);
-      setRpe(null);
-    }
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`${btnGhost} w-full py-3`}
-      >
-        <IconPlus className="size-4" />
-        Ajouter une séance libre
-      </button>
-    );
+    if (state?.ok) onDone();
   }
 
   return (
@@ -62,7 +49,7 @@ export function FreeSessionSheet() {
             <label className={labelClass} htmlFor="free-type">
               Type
             </label>
-            <select id="free-type" name="type" className={`${inputClass} h-12`}>
+            <select id="free-type" name="type" className={`${inputClass} min-h-[52px]`}>
               {SESSION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -81,10 +68,13 @@ export function FreeSessionSheet() {
               defaultValue={toISODate(new Date())}
               max={toISODate(new Date())}
               required
-              // Hauteur explicite : sur iOS, le contrôle natif de date ignore
-              // en partie le padding et rend plus haut qu'un <select> avec
-              // les mêmes classes.
-              className={`${inputClass} h-12`}
+              // Hauteur minimale plutôt que fixe : sur iOS, le contrôle natif
+              // de date ignore le padding et impose sa propre hauteur — la
+              // forcer plus petite (h-12) l'a laissée inchangée tout en
+              // rétrécissant le <select>, creusant l'écart au lieu de le
+              // combler. En hauteur minimale, le <select> peut grandir pour
+              // rejoindre la date, jamais l'inverse.
+              className={`${inputClass} min-h-[52px]`}
             />
           </div>
         </div>
@@ -125,11 +115,7 @@ export function FreeSessionSheet() {
         )}
         <div className="flex gap-2">
           <SubmitButton className="flex-1 py-2.5">Enregistrer</SubmitButton>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className={btnGhost}
-          >
+          <button type="button" onClick={onCancel} className={btnGhost}>
             Annuler
           </button>
         </div>

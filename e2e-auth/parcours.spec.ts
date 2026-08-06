@@ -227,7 +227,8 @@ test.describe("Athlète", () => {
     page,
   }) => {
     await seConnecter(page, "lea@example.com");
-    await page.getByRole("button", { name: "Ajouter une séance libre" }).click();
+    await page.getByRole("button", { name: "Ajouter une séance" }).click();
+    await page.getByText("Séance libre").click();
 
     const type = await page.getByLabel("Type").boundingBox();
     const date = await page.getByLabel("Date").boundingBox();
