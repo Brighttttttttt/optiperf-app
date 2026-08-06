@@ -110,7 +110,7 @@ export function ImportActivitySheet({ sessions }: { sessions: TrainingSession[] 
           ref={champFichier}
           id="import-fichier"
           type="file"
-          accept=".gpx,.tcx,application/gpx+xml"
+          accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml"
           onChange={(e) => analyser(e.target.files?.[0])}
           className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-pine-soft file:px-3 file:py-1.5 file:text-pine file:font-semibold`}
         />

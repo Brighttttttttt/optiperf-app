@@ -179,7 +179,7 @@ export function MessageThread({
             placeholder="Ton message…"
             aria-label="Ton message"
             maxLength={LIMITS.message}
-            className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-[15px] focus:border-pine focus:outline-none"
+            className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-[16px] focus:border-pine focus:outline-none"
           />
           <button
             type="submit"
