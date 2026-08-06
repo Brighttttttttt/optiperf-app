@@ -1,5 +1,7 @@
+// 16px minimum : en dessous, Safari iOS zoome automatiquement sur le champ
+// au focus, et ne dézoome pas toujours après.
 export const inputClass =
-  "w-full rounded-xl border border-line bg-card px-3.5 py-3 text-[15px] text-ink placeholder:text-ink-soft/60 focus:border-pine focus:outline-none";
+  "w-full rounded-xl border border-line bg-card px-3.5 py-3 text-[16px] text-ink placeholder:text-ink-soft/60 focus:border-pine focus:outline-none";
 
 export const labelClass = "block text-[13px] font-semibold text-ink-soft mb-1.5";
 
