@@ -70,8 +70,12 @@ test("une FC de repos supérieure ou égale à la FC max est refusée", async ({
   await seConnecter(page, "nino@example.com");
   await page.goto("/settings");
 
-  await page.getByLabel("FC max (bpm)").fill("180");
-  await page.getByLabel("FC repos (bpm)").fill("180");
+  // Chacune dans les bornes de son propre champ (25–120 pour la FC repos,
+  // 100–230 pour la FC max) : seule la comparaison entre les deux doit
+  // faire échouer l'enregistrement, pas la validation HTML5 native d'un
+  // <input min max>, qui bloquerait la soumission avant même le serveur.
+  await page.getByLabel("FC max (bpm)").fill("110");
+  await page.getByLabel("FC repos (bpm)").fill("110");
   await formulaireFc(page).getByRole("button", { name: "Enregistrer" }).click();
 
   await expect(page.getByText(/FC de repos doit être inférieure/)).toBeVisible();
