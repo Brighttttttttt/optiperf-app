@@ -47,7 +47,15 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   await seConnecter(pageAthlete, "nino@example.com");
   await expect(pageAthlete.getByText(titre)).toBeVisible();
 
-  const carte = pageAthlete.locator("div").filter({ hasText: titre }).last();
+  // Le titre et le bouton sont dans des div frères (pas l'un dans l'autre) :
+  // filtrer sur le seul texte prend la div la plus profonde qui contient le
+  // titre, sans le bouton. Exiger aussi le bouton comme descendant retombe
+  // sur la carte qui les contient tous les deux.
+  const carte = pageAthlete
+    .locator("div")
+    .filter({ hasText: titre })
+    .filter({ has: pageAthlete.getByRole("button", { name: "C'est fait" }) })
+    .last();
   await carte.getByRole("button", { name: "C'est fait" }).click();
 
   await pageAthlete.getByRole("radio", { name: "6", exact: true }).click();
