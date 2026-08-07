@@ -4,11 +4,19 @@ import { Card, StatTile, StatusBadge } from "@/components/ui";
 import { ObjectiveForm } from "@/components/ObjectiveForm";
 import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
 import { ZoneBar } from "@/components/ZoneBar";
+import { RecordsForm } from "@/components/RecordsForm";
 import { deleteObjective } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
 import { additionnerZones, repartitionZones, type RepartitionZones } from "@/lib/zones";
-import type { Activity, ActivityTrace, Objective, Profile, TrainingSession } from "@/lib/types";
+import type {
+  Activity,
+  ActivityTrace,
+  Objective,
+  PersonalRecord,
+  Profile,
+  TrainingSession,
+} from "@/lib/types";
 
 const ZONES_VIDES: RepartitionZones = { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 };
 
@@ -28,7 +36,7 @@ export default async function AthleteFichePage({
     .maybeSingle<Profile>();
   if (!athlete) redirect("/");
 
-  const [sessionsRes, objectivesRes] = await Promise.all([
+  const [sessionsRes, objectivesRes, recordsRes] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
@@ -41,10 +49,12 @@ export default async function AthleteFichePage({
       .select("*")
       .eq("athlete_id", id)
       .order("target_date", { ascending: true }),
+    supabase.from("personal_records").select("*").eq("athlete_id", id),
   ]);
 
   const sessions = (sessionsRes.data ?? []) as TrainingSession[];
   const objectives = (objectivesRes.data ?? []) as Objective[];
+  const records = (recordsRes.data ?? []) as PersonalRecord[];
   const metrics = computeMetrics(sessions, now);
 
   // Moyenne des zones sur les 10 dernières séances rapportées, pas sur la
@@ -124,6 +134,20 @@ export default async function AthleteFichePage({
           <ZoneBar titre="Zones (10 dernières séances)" zones={zonesMoyennes} />
         </Card>
       )}
+
+      <Card className="p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="font-semibold">Records personnels</p>
+          {/* La VMA est saisie par l'athlète seul (comme FC max) : le coach
+              la consulte ici, il ne la modifie pas. */}
+          <p className="text-[13px] text-ink-soft">
+            VMA {athlete.vma_kmh !== null ? `${athlete.vma_kmh} km/h` : "—"}
+          </p>
+        </div>
+        <div className="mt-2">
+          <RecordsForm athleteId={athlete.id} records={records} />
+        </div>
+      </Card>
 
       <section>
         <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">
