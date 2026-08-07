@@ -47,15 +47,14 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   await seConnecter(pageAthlete, "nino@example.com");
   await expect(pageAthlete.getByText(titre)).toBeVisible();
 
-  // Le titre et le bouton sont dans des div frères (pas l'un dans l'autre) :
-  // filtrer sur le seul texte prend la div la plus profonde qui contient le
-  // titre, sans le bouton. Exiger aussi le bouton comme descendant retombe
-  // sur la carte qui les contient tous les deux.
-  const carte = pageAthlete
-    .locator("div")
-    .filter({ hasText: titre })
-    .filter({ has: pageAthlete.getByRole("button", { name: "C'est fait" }) })
-    .last();
+  // Le titre est dans une div frère du bouton, pas une ancêtre : filtrer sur
+  // le seul texte prend la div la plus profonde qui le contient, sans le
+  // bouton. `rounded-2xl` est la marque de la carte elle-même (Card, dans
+  // ui.tsx) — un repère stable avant et après le compte rendu, contrairement
+  // à un filtre sur la présence du bouton, qui disparaît une fois la séance
+  // marquée faite. Nino a d'autres séances planifiées : sans ce scope, la
+  // vérification finale porterait sur les 5 boutons de la page.
+  const carte = pageAthlete.locator("div.rounded-2xl").filter({ hasText: titre });
   await carte.getByRole("button", { name: "C'est fait" }).click();
 
   await pageAthlete.getByRole("radio", { name: "6", exact: true }).click();
@@ -65,7 +64,7 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   await pageAthlete.getByLabel("Charge (kg)").fill("55");
   await pageAthlete.getByRole("button", { name: "Enregistrer" }).click();
 
-  await expect(pageAthlete.getByRole("button", { name: "C'est fait" })).toBeHidden();
+  await expect(carte.getByRole("button", { name: "C'est fait" })).toBeHidden();
 
   // Retrouvée structurée sur la fiche de la séance, prescription et réalisé.
   await pageAthlete.getByText(titre).click();
