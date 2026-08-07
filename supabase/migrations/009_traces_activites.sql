@@ -17,6 +17,12 @@
 -- points au maximum). Des tableaux parallèles suffisent et se relisent en
 -- une seule ligne.
 
+-- Nécessaire à la clé étrangère composée ci-dessous, qui doit donc être
+-- posée en premier : une activité ne change pas d'athlète, cette contrainte
+-- ne fait qu'exposer ce qui est déjà vrai.
+alter table public.activities
+  add constraint activities_id_athlete_id_key unique (id, athlete_id);
+
 create table public.activity_traces (
   activity_id uuid primary key references public.activities (id) on delete cascade,
   -- Dénormalisé depuis activities.athlete_id : une RLS simple, à l'identique
@@ -39,11 +45,6 @@ create table public.activity_traces (
     references public.activities (id, athlete_id)
     on delete cascade
 );
-
--- Nécessaire à la clé étrangère composée ci-dessus : une activité ne change
--- pas d'athlète, cette contrainte ne fait qu'exposer ce qui est déjà vrai.
-alter table public.activities
-  add constraint activities_id_athlete_id_key unique (id, athlete_id);
 
 alter table public.activity_traces enable row level security;
 
