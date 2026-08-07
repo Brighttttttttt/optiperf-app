@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
+import { validerTrace } from "@/lib/activites";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -457,6 +458,20 @@ export async function importActivity(
       return { error: "Cette séance a déjà été importée." };
     }
     return { error: "Impossible d'enregistrer l'activité." };
+  }
+
+  // Enrichissement visuel, pas la donnée de référence : son échec ne doit
+  // pas faire perdre l'activité déjà enregistrée.
+  const points = validerTrace(String(formData.get("trace") ?? ""));
+  if (points.length > 0) {
+    await supabase.from("activity_traces").insert({
+      activity_id: activite.id,
+      athlete_id: user.id,
+      t_s: points.map((p) => p.tOffsetS),
+      heart_rate: points.map((p) => p.heartRate),
+      pace_sec_per_km: points.map((p) => p.paceSecPerKm),
+      altitude_m: points.map((p) => p.altitudeM),
+    });
   }
 
   // Rattachement : soit une séance existante que l'athlète a désignée, soit

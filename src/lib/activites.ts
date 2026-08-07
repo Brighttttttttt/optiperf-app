@@ -30,6 +30,18 @@ export type ActiviteLue = {
   durationMin: number;
   distanceM: number | null;
   avgHeartRate: number | null;
+  /** Null si le fichier ne contient ni FC, ni allure, ni altitude exploitables
+   *  (ex. saisie sans montre, tapis sans GPS et sans capteur FC). */
+  trace: PointTrace[] | null;
+};
+
+/** Un point de la trace d'une activité, échantillon temporel unique. */
+export type PointTrace = {
+  /** Secondes écoulées depuis le début de l'activité. */
+  tOffsetS: number;
+  heartRate: number | null;
+  paceSecPerKm: number | null;
+  altitudeM: number | null;
 };
 
 export type LectureActivite =
@@ -138,14 +150,87 @@ function distanceEntre(
 }
 
 /**
- * Assemble le résultat commun aux deux formats, et refuse ce qui ne peut pas
+ * Un point par seconde sur un trail de 2 h dépasserait 7000 valeurs : de quoi
+ * alourdir le stockage et le tracé sans rien ajouter de lisible à une courbe.
+ * Un sous-échantillonnage régulier, premier et dernier point compris, suffit
+ * à la forme de la courbe.
+ */
+export const MAX_POINTS_TRACE = 400;
+
+function sousEchantillonner<T>(valeurs: T[], max: number): T[] {
+  if (valeurs.length <= max) return valeurs;
+  const pas = (valeurs.length - 1) / (max - 1);
+  return Array.from({ length: max }, (_, i) => valeurs[Math.round(i * pas)]);
+}
+
+type PointBrut = {
+  t: Date | null;
+  lat: number | null;
+  lon: number | null;
+  /** Vitesse instantanée déclarée par la montre (m/s), quand elle existe :
+   *  prioritaire sur le calcul par position, plus stable qu'une dérivée de
+   *  positions GPS bruitées. */
+  speedMps: number | null;
+  heartRate: number | null;
+  altitudeM: number | null;
+};
+
+/**
+ * Assemble la trace (temps écoulé, FC, allure, altitude) à partir de points
+ * bruts, dans l'ordre du fichier. Sans vitesse déclarée, l'allure vient de la
+ * distance entre deux points consécutifs (haversine, comme la distance
+ * totale du GPX) plutôt que d'une distance cumulée déclarée par tour, dont la
+ * remise à zéro n'est pas garantie selon les fabricants.
+ *
+ * Les allures hors de toute plausibilité (arrêt GPS, point dupliqué) sont
+ * écartées plutôt que de produire un pic absurde sur la courbe.
+ */
+function traceDepuisPoints(points: PointBrut[], debut: Date): PointTrace[] | null {
+  const utiles = points.filter(
+    (p): p is PointBrut & { t: Date } => p.t !== null && !Number.isNaN(p.t.getTime())
+  );
+  if (utiles.length === 0) return null;
+
+  const brute: PointTrace[] = utiles.map((p, i) => {
+    let paceSecPerKm: number | null = null;
+    if (p.speedMps !== null && p.speedMps > 0) {
+      paceSecPerKm = 1000 / p.speedMps;
+    } else {
+      const precedent = i > 0 ? utiles[i - 1] : null;
+      if (precedent && p.lat !== null && p.lon !== null && precedent.lat !== null && precedent.lon !== null) {
+        const dt = (p.t.getTime() - precedent.t.getTime()) / 1000;
+        const d = distanceEntre({ lat: precedent.lat, lon: precedent.lon }, { lat: p.lat, lon: p.lon });
+        if (dt > 0 && d > 0) paceSecPerKm = (dt / d) * 1000;
+      }
+    }
+    if (paceSecPerKm !== null && (paceSecPerKm < 60 || paceSecPerKm > 7200)) {
+      paceSecPerKm = null;
+    }
+
+    return {
+      tOffsetS: Math.round((p.t.getTime() - debut.getTime()) / 1000),
+      heartRate: p.heartRate,
+      paceSecPerKm,
+      altitudeM: p.altitudeM,
+    };
+  });
+
+  const aDesValeurs = brute.some(
+    (p) => p.heartRate !== null || p.paceSecPerKm !== null || p.altitudeM !== null
+  );
+  return aDesValeurs ? sousEchantillonner(brute, MAX_POINTS_TRACE) : null;
+}
+
+/**
+ * Assemble le résultat commun aux trois formats, et refuse ce qui ne peut pas
  * exister en base : la contrainte SQL impose une durée strictement positive.
  */
 function assembler(
   debut: Date,
   secondes: number,
   distanceM: number | null,
-  avgHeartRate: number | null
+  avgHeartRate: number | null,
+  trace: PointTrace[] | null
 ): LectureActivite {
   if (Number.isNaN(debut.getTime())) {
     return echec("La date de début du fichier est illisible.");
@@ -161,6 +246,7 @@ function assembler(
       durationMin: Math.max(1, Math.round(secondes / 60)),
       distanceM: distanceM === null ? null : Math.round(distanceM),
       avgHeartRate,
+      trace,
     },
   };
 }
@@ -176,7 +262,8 @@ export function lireGpx(xml: string): LectureActivite {
       const lon = Number(/\blon="([^"]+)"/.exec(m[1])?.[1]);
       const time = balises(m[2], "time")[0];
       const hr = nombres(balises(m[2], "hr"))[0];
-      return { lat, lon, time, hr };
+      const ele = nombres(balises(m[2], "ele"))[0];
+      return { lat, lon, time, hr, ele };
     });
 
   if (points.length === 0) {
@@ -202,11 +289,24 @@ export function lireGpx(xml: string): LectureActivite {
     distance += distanceEntre(situes[i - 1], situes[i]);
   }
 
+  const trace = traceDepuisPoints(
+    points.map((p) => ({
+      t: p.time ? new Date(p.time) : null,
+      lat: Number.isFinite(p.lat) ? p.lat : null,
+      lon: Number.isFinite(p.lon) ? p.lon : null,
+      speedMps: null,
+      heartRate: Number.isFinite(p.hr) ? p.hr : null,
+      altitudeM: Number.isFinite(p.ele) ? p.ele : null,
+    })),
+    debut
+  );
+
   return assembler(
     debut,
     secondes,
     situes.length >= 2 ? distance : null,
-    moyenne(points.map((p) => p.hr).filter((h): h is number => Number.isFinite(h)))
+    moyenne(points.map((p) => p.hr).filter((h): h is number => Number.isFinite(h))),
+    trace
   );
 }
 
@@ -214,6 +314,27 @@ export function lireGpx(xml: string): LectureActivite {
  * TCX : la montre a déjà totalisé chaque tour. On additionne les tours plutôt
  * que de recalculer — c'est le chiffre que l'athlète voit sur son écran.
  */
+/** Points `Trackpoint` d'un tour, avant que ses totaux ne soient lus. */
+function trackpointsDeTour(tourXml: string): PointBrut[] {
+  return blocs(tourXml, "Track").flatMap((track) =>
+    blocs(track, "Trackpoint").map((tp) => {
+      const time = balises(tp, "Time")[0];
+      const lat = nombres(balises(tp, "LatitudeDegrees"))[0];
+      const lon = nombres(balises(tp, "LongitudeDegrees"))[0];
+      const hr = nombres(blocs(tp, "HeartRateBpm").flatMap((b) => balises(b, "Value")))[0];
+      const alt = nombres(balises(tp, "AltitudeMeters"))[0];
+      return {
+        t: time ? new Date(time) : null,
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+        speedMps: null,
+        heartRate: Number.isFinite(hr) ? hr : null,
+        altitudeM: Number.isFinite(alt) ? alt : null,
+      };
+    })
+  );
+}
+
 export function lireTcx(xml: string): LectureActivite {
   const tours = blocs(xml, "Lap");
   if (tours.length === 0) {
@@ -243,12 +364,16 @@ export function lireTcx(xml: string): LectureActivite {
   if (!declare) {
     return echec("La date de début du fichier est illisible.");
   }
+  const debut = new Date(declare);
+
+  const trace = traceDepuisPoints(tours.flatMap(trackpointsDeTour), debut);
 
   return assembler(
-    new Date(declare),
+    debut,
     secondes,
     distances.length > 0 ? distances.reduce((s, v) => s + v, 0) : null,
-    moyenne(fc)
+    moyenne(fc),
+    trace
   );
 }
 
@@ -286,7 +411,26 @@ function lireFit(stream: Stream): LectureActivite {
     sessions[0]?.avgHeartRate ??
     moyenne(laps.map((l) => l.avgHeartRate).filter((h): h is number => h !== undefined));
 
-  return assembler(debut, secondes, distanceM, avgHeartRate);
+  // Le message `record`, un par échantillon, porte la vitesse instantanée :
+  // pas besoin de la dériver de deux positions comme pour GPX et TCX.
+  const records = messages.recordMesgs ?? [];
+  const trace = traceDepuisPoints(
+    records.map((r) => {
+      const vitesse = r.enhancedSpeed ?? r.speed;
+      const altitude = r.enhancedAltitude ?? r.altitude;
+      return {
+        t: r.timestamp instanceof Date ? r.timestamp : null,
+        lat: null,
+        lon: null,
+        speedMps: typeof vitesse === "number" && vitesse > 0 ? vitesse : null,
+        heartRate: typeof r.heartRate === "number" ? r.heartRate : null,
+        altitudeM: typeof altitude === "number" ? altitude : null,
+      };
+    }),
+    debut
+  );
+
+  return assembler(debut, secondes, distanceM, avgHeartRate, trace);
 }
 
 /**
@@ -336,4 +480,46 @@ export function lireFichierActivite(
     );
   }
   return echec("Format non reconnu : dépose un fichier GPX, TCX ou FIT.");
+}
+
+/**
+ * Revalide côté serveur la trace produite par le navigateur (JSON envoyé
+ * dans un champ caché) : ce que l'action serveur reçoit n'est jamais que ce
+ * qui a été affiché, mais un formulaire se manipule. Un point hors bornes
+ * ou mal formé est écarté plutôt que de faire échouer tout l'import — la
+ * trace reste un enrichissement visuel, pas la donnée de référence.
+ */
+export function validerTrace(brut: string): PointTrace[] {
+  if (!brut) return [];
+  let donnees: unknown;
+  try {
+    donnees = JSON.parse(brut);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(donnees)) return [];
+
+  const nombreOuNull = (v: unknown, min: number, max: number): number | null => {
+    if (v === null) return null;
+    return typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? v : null;
+  };
+
+  return donnees
+    .slice(0, MAX_POINTS_TRACE)
+    .map((p): PointTrace | null => {
+      if (typeof p !== "object" || p === null) return null;
+      const o = p as Record<string, unknown>;
+      const tOffsetS =
+        typeof o.tOffsetS === "number" && Number.isFinite(o.tOffsetS)
+          ? Math.max(0, Math.round(o.tOffsetS))
+          : null;
+      if (tOffsetS === null) return null;
+      return {
+        tOffsetS,
+        heartRate: nombreOuNull(o.heartRate, 20, 240),
+        paceSecPerKm: nombreOuNull(o.paceSecPerKm, 60, 7200),
+        altitudeM: nombreOuNull(o.altitudeM, -500, 9000),
+      };
+    })
+    .filter((p): p is PointTrace => p !== null);
 }

@@ -2,13 +2,23 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { Encoder, Profile, type Encodable, type FileIdMesg, type LapMesg, type SessionMesg } from "@garmin/fitsdk";
+import {
+  Encoder,
+  Profile,
+  type Encodable,
+  type FileIdMesg,
+  type LapMesg,
+  type RecordMesg,
+  type SessionMesg,
+} from "@garmin/fitsdk";
 import {
   formatDistance,
   lireFichierActivite,
   lireGpx,
   lireTcx,
+  MAX_POINTS_TRACE,
   TAILLE_MAX_OCTETS,
+  validerTrace,
   type LectureActivite,
 } from "./activites";
 
@@ -335,6 +345,144 @@ describe("cohérence GPX ↔ TCX sur des exports réels", () => {
         expect(lu.avgHeartRate!).toBeLessThan(230);
       }
     });
+  });
+});
+
+describe("trace (FC/allure/altitude)", () => {
+  it("extrait FC et altitude d'un GPX réel", () => {
+    const trace = reussite(lireGpx(exemple("strava-footing.gpx"))).trace;
+    expect(trace).not.toBeNull();
+    expect(trace![0].tOffsetS).toBe(0);
+    expect(trace!.some((p) => p.heartRate !== null)).toBe(true);
+    expect(trace!.some((p) => p.altitudeM !== null)).toBe(true);
+  });
+
+  it("extrait FC et altitude d'un TCX réel", () => {
+    const trace = reussite(
+      lireTcx(exemple("LaTour-en-JarezTrail20260516110831.tcx"))
+    ).trace;
+    expect(trace).not.toBeNull();
+    expect(trace!.some((p) => p.heartRate !== null)).toBe(true);
+    expect(trace!.some((p) => p.altitudeM !== null)).toBe(true);
+  });
+
+  it("sous-échantillonne une trace longue à 400 points, sans perdre les extrémités", () => {
+    // Export réel de 6871 points GPX (trail).
+    const trace = reussite(
+      lireGpx(exemple("LaTour-en-JarezTrail20260516110831.gpx"))
+    ).trace!;
+    expect(trace.length).toBeLessThanOrEqual(400);
+    expect(trace[0].tOffsetS).toBe(0);
+    expect(trace[trace.length - 1].tOffsetS).toBeGreaterThan(0);
+  });
+
+  it("calcule une allure plausible à partir de la position (GPX)", () => {
+    const trace = reussite(lireGpx(exemple("strava-footing.gpx"))).trace!;
+    const allures = trace.map((p) => p.paceSecPerKm).filter((p): p is number => p !== null);
+    expect(allures.length).toBeGreaterThan(0);
+    for (const a of allures) {
+      expect(a).toBeGreaterThanOrEqual(60);
+      expect(a).toBeLessThanOrEqual(7200);
+    }
+  });
+
+  it("vaut null sans FC, position ni altitude à en tirer", () => {
+    const xml = `<gpx><trk><trkseg>
+      <trkpt><time>2026-08-04T18:00:00Z</time></trkpt>
+      <trkpt><time>2026-08-04T18:05:00Z</time></trkpt>
+    </trkseg></trk></gpx>`;
+    expect(reussite(lireGpx(xml)).trace).toBeNull();
+  });
+
+  it("préfère la vitesse instantanée d'un FIT au calcul par position", () => {
+    const debut = new Date("2026-08-05T17:30:00Z");
+    const encoder = new Encoder();
+    encoder.writeMesg({
+      mesgNum: Profile.MesgNum.FILE_ID,
+      type: "activity",
+      manufacturer: "garmin",
+      product: 1,
+      timeCreated: debut,
+    } as Encodable<FileIdMesg>);
+    encoder.writeMesg({
+      mesgNum: Profile.MesgNum.SESSION,
+      startTime: debut,
+      totalElapsedTime: 600,
+      totalTimerTime: 600,
+      totalDistance: 2000,
+    } as Encodable<SessionMesg>);
+    // 3 m/s ≈ 333 s/km.
+    for (let i = 0; i < 3; i++) {
+      encoder.writeMesg({
+        mesgNum: Profile.MesgNum.RECORD,
+        timestamp: new Date(debut.getTime() + i * 60_000),
+        heartRate: 140 + i,
+        enhancedAltitude: 100 + i,
+        enhancedSpeed: 3,
+      } as Encodable<RecordMesg>);
+    }
+    const activite = reussite(
+      lireFichierActivite(new Uint8Array(encoder.close()).buffer)
+    );
+    const trace = activite.trace!;
+    expect(trace).toHaveLength(3);
+    expect(trace[0].tOffsetS).toBe(0);
+    expect(trace[1].tOffsetS).toBe(60);
+    expect(trace.map((p) => p.heartRate)).toEqual([140, 141, 142]);
+    expect(trace.map((p) => p.altitudeM)).toEqual([100, 101, 102]);
+    for (const p of trace) {
+      expect(p.paceSecPerKm).toBeCloseTo(333.3, 0);
+    }
+  });
+});
+
+describe("validerTrace", () => {
+  it("accepte une trace bien formée", () => {
+    const brut = JSON.stringify([
+      { tOffsetS: 0, heartRate: 140, paceSecPerKm: 300, altitudeM: 100 },
+      { tOffsetS: 60, heartRate: 145, paceSecPerKm: null, altitudeM: 102 },
+    ]);
+    expect(validerTrace(brut)).toEqual([
+      { tOffsetS: 0, heartRate: 140, paceSecPerKm: 300, altitudeM: 100 },
+      { tOffsetS: 60, heartRate: 145, paceSecPerKm: null, altitudeM: 102 },
+    ]);
+  });
+
+  it("vaut un tableau vide pour une entrée absente ou illisible", () => {
+    expect(validerTrace("")).toEqual([]);
+    expect(validerTrace("pas du json")).toEqual([]);
+    expect(validerTrace("{}")).toEqual([]);
+    expect(validerTrace("null")).toEqual([]);
+  });
+
+  it("écarte les points sans horodatage plutôt que la trace entière", () => {
+    const brut = JSON.stringify([
+      { tOffsetS: 0, heartRate: 140, paceSecPerKm: null, altitudeM: null },
+      { heartRate: 999 },
+      "pas un point",
+      { tOffsetS: 30, heartRate: 141, paceSecPerKm: null, altitudeM: null },
+    ]);
+    expect(validerTrace(brut)).toHaveLength(2);
+  });
+
+  it("remplace une valeur hors bornes par null plutôt que de la garder telle quelle", () => {
+    // Un formulaire se manipule : une FC de 999 bpm ne doit pas atteindre la base.
+    const brut = JSON.stringify([
+      { tOffsetS: 0, heartRate: 999, paceSecPerKm: 1, altitudeM: 50_000 },
+    ]);
+    expect(validerTrace(brut)).toEqual([
+      { tOffsetS: 0, heartRate: null, paceSecPerKm: null, altitudeM: null },
+    ]);
+  });
+
+  it("plafonne le nombre de points, sans dépasser ce que la lecture produit elle-même", () => {
+    const trop = Array.from({ length: MAX_POINTS_TRACE + 200 }, (_, i) => ({
+      tOffsetS: i,
+      heartRate: null,
+      paceSecPerKm: null,
+      altitudeM: 100,
+    }));
+    expect(validerTrace(JSON.stringify(trop))).toHaveLength(MAX_POINTS_TRACE);
   });
 });
 
