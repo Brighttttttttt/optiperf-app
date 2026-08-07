@@ -47,7 +47,9 @@ test("le coach voit et modifie les records de son athlète, mais pas sa VMA", as
   await ligne10km.getByPlaceholder("mm:ss").fill("42:30");
   await ligne10km.getByRole("button", { name: "OK" }).click();
 
-  // La VMA n'a qu'un affichage ici, jamais de champ modifiable par le coach.
-  await expect(page.getByText(/^VMA/)).toBeVisible();
+  // La VMA n'a qu'un affichage ici, jamais de champ modifiable par le coach —
+  // l'égalité stricte évite de confondre avec la suggestion de VMA affichée
+  // sous la ligne 10 km qu'on vient de remplir.
+  await expect(page.getByText(/^VMA (—|[\d,.]+ km\/h)$/)).toBeVisible();
   await expect(page.getByLabel("VMA (km/h)")).toHaveCount(0);
 });
