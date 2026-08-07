@@ -28,7 +28,11 @@ function PlannedSessionCard({
       <div className="mt-0.5 flex items-baseline justify-between gap-2">
         <p className="font-semibold text-[17px] truncate">{session.title}</p>
         <p className="shrink-0 text-[13px] text-ink-soft">
-          {sessionTypeLabel(session.type)}
+          {session.type === "renfo" ? (
+            <span className="font-semibold text-pine">Muscu</span>
+          ) : (
+            sessionTypeLabel(session.type)
+          )}
           {session.duration_planned_min
             ? ` · ${formatDuration(session.duration_planned_min)}`
             : ""}
