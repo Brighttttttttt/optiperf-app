@@ -74,7 +74,7 @@ export function AthleteCard({
           <Link href={`/planifier?athlete=${athlete.id}`} className={btnGhost}>
             Planifier
           </Link>
-          <Link href={`/messages/${athlete.id}`} className={btnGhost}>
+          <Link href={`/athletes/${athlete.id}/messagerie`} className={btnGhost}>
             Message
           </Link>
         </div>
