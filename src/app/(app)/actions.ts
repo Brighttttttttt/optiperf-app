@@ -8,6 +8,7 @@ import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 import { validerTrace } from "@/lib/activites";
 import { validerBlocs } from "@/lib/blocks";
+import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -362,6 +363,113 @@ export async function updateName(
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+export async function updateHeartRateRefs(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const nombreOuNull = (champ: string, min: number, max: number) => {
+    const brut = String(formData.get(champ) ?? "").trim();
+    if (brut === "") return null;
+    const valeur = Number(brut);
+    if (!Number.isFinite(valeur) || valeur < min || valeur > max) return "invalide" as const;
+    return Math.round(valeur);
+  };
+
+  const fcMax = nombreOuNull("fc_max", 100, 230);
+  if (fcMax === "invalide") {
+    return { error: "La FC max doit être comprise entre 100 et 230 bpm." };
+  }
+  const fcRepos = nombreOuNull("fc_repos", 25, 120);
+  if (fcRepos === "invalide") {
+    return { error: "La FC de repos doit être comprise entre 25 et 120 bpm." };
+  }
+  if (fcMax !== null && fcRepos !== null && fcRepos >= fcMax) {
+    return { error: "La FC de repos doit être inférieure à la FC max." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ fc_max: fcMax, fc_repos: fcRepos })
+    .eq("id", user.id);
+  if (error) return { error: "Impossible d'enregistrer." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function updateVma(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const brut = String(formData.get("vma_kmh") ?? "").trim();
+  let vma: number | null = null;
+  if (brut !== "") {
+    const valeur = Number(brut.replace(",", "."));
+    if (!Number.isFinite(valeur) || valeur < 8 || valeur > 26) {
+      return { error: "La VMA doit être comprise entre 8 et 26 km/h." };
+    }
+    vma = Math.round(valeur * 10) / 10;
+  }
+
+  const { error } = await supabase.from("profiles").update({ vma_kmh: vma }).eq("id", user.id);
+  if (error) return { error: "Impossible d'enregistrer." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// ---------- Records personnels ----------
+
+export async function saveRecord(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const athleteId = String(formData.get("athlete_id") ?? user.id);
+  const distance = String(formData.get("distance") ?? "");
+  if (!RECORD_DISTANCE_VALUES.includes(distance)) {
+    return { error: "Distance inconnue." };
+  }
+
+  const dureeSec = parseDurationInput(String(formData.get("duration") ?? ""));
+  if (dureeSec === null) {
+    return { error: "Chrono illisible : au format mm:ss ou h:mm:ss." };
+  }
+
+  const achievedOn = String(formData.get("achieved_on") ?? "").trim() || null;
+
+  // Un record par distance : la nouvelle valeur remplace l'ancienne, elle ne
+  // s'empile pas. La RLS refuse l'écriture si l'appelant n'est ni l'athlète
+  // ni son coach.
+  const { error } = await supabase.from("personal_records").upsert(
+    {
+      athlete_id: athleteId,
+      distance,
+      duration_sec: dureeSec,
+      achieved_on: achievedOn,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "athlete_id,distance" }
+  );
+  if (error) return { error: "Impossible d'enregistrer ce record." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function deleteRecord(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = String(formData.get("record_id") ?? "");
+  if (!id) return;
+  await supabase.from("personal_records").delete().eq("id", id);
+  revalidatePath("/", "layout");
 }
 
 // ---------- Groupe du coach ----------

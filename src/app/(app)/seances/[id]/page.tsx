@@ -5,8 +5,10 @@ import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
 import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
+import { ZoneBar } from "@/components/ZoneBar";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
+import { repartitionZones } from "@/lib/zones";
 import {
   activitySourceLabel,
   sessionTypeLabel,
@@ -40,9 +42,9 @@ export default async function SessionPage({
 
   const { data: athlete } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, fc_max")
     .eq("id", session.athlete_id)
-    .maybeSingle<Pick<Profile, "full_name">>();
+    .maybeSingle<Pick<Profile, "full_name" | "fc_max">>();
 
   const { data: blocksData } = await supabase
     .from("workout_blocks")
@@ -143,7 +145,13 @@ export default async function SessionPage({
           )}
 
           {trace && (
-            <Card className="p-4">
+            <Card className="p-4 space-y-4">
+              {athlete?.fc_max && (
+                <ZoneBar
+                  titre="Zones de fréquence cardiaque"
+                  zones={repartitionZones(trace.t_s, trace.heart_rate ?? [], athlete.fc_max)}
+                />
+              )}
               <ActivityTraceChart trace={trace} />
             </Card>
           )}

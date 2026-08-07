@@ -5,9 +5,12 @@ import { Card, PageHeader } from "@/components/ui";
 import { InviteCode } from "@/components/InviteCode";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
 import { NameForm } from "@/components/NameForm";
+import { HeartRateRefsForm } from "@/components/HeartRateRefsForm";
+import { VmaForm } from "@/components/VmaForm";
+import { RecordsForm } from "@/components/RecordsForm";
 import { DeleteAccount } from "@/components/DeleteAccount";
 import { TemplateList } from "@/components/TemplateList";
-import type { SessionTemplate } from "@/lib/types";
+import type { PersonalRecord, SessionTemplate } from "@/lib/types";
 import { signOut } from "@/app/(auth)/actions";
 import { initials } from "@/lib/initials";
 import type { Profile } from "@/lib/types";
@@ -29,6 +32,7 @@ export default async function SettingsPage() {
   }
 
   let coach: Profile | null = null;
+  let records: PersonalRecord[] = [];
   if (profile.role === "athlete") {
     const { data: link } = await supabase
       .from("coach_athletes")
@@ -43,6 +47,12 @@ export default async function SettingsPage() {
         .maybeSingle();
       coach = (data as Profile) ?? null;
     }
+
+    const { data: recordsData } = await supabase
+      .from("personal_records")
+      .select("*")
+      .eq("athlete_id", user.id);
+    records = (recordsData ?? []) as PersonalRecord[];
   }
 
   return (
@@ -72,6 +82,39 @@ export default async function SettingsPage() {
         )}
 
         {profile.role === "coach" && <TemplateList templates={templates} />}
+
+        {profile.role === "athlete" && (
+          <Card className="p-4">
+            <p className="font-semibold">Fréquence cardiaque</p>
+            <p className="mt-0.5 text-[13px] text-ink-soft">
+              Sert de base au calcul des zones sur tes séances importées.
+            </p>
+            <div className="mt-3">
+              <HeartRateRefsForm fcMax={profile.fc_max} fcRepos={profile.fc_repos} />
+            </div>
+          </Card>
+        )}
+
+        {profile.role === "athlete" && (
+          <Card className="p-4">
+            <p className="font-semibold">Records personnels</p>
+            <p className="mt-0.5 text-[13px] text-ink-soft">
+              Un chrono par distance : la nouvelle valeur remplace l&apos;ancienne.
+            </p>
+            <div className="mt-2">
+              <RecordsForm athleteId={user.id} records={records} />
+            </div>
+          </Card>
+        )}
+
+        {profile.role === "athlete" && (
+          <Card className="p-4">
+            <p className="font-semibold">VMA</p>
+            <div className="mt-3">
+              <VmaForm vmaKmh={profile.vma_kmh} />
+            </div>
+          </Card>
+        )}
 
         {profile.role === "athlete" && (
           <Card className="p-4">
