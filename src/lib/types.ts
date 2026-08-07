@@ -21,7 +21,23 @@ export type Profile = {
   fc_max: number | null;
   /** Facultative, sans usage aujourd'hui : pas de calcul par réserve. */
   fc_repos: number | null;
+  /** Saisie directement, éventuellement à partir d'une suggestion (src/lib/records.ts). */
+  vma_kmh: number | null;
   created_at: string;
+};
+
+/**
+ * Record personnel sur une distance standard. Une ligne par distance et par
+ * athlète (contrainte unique) : un record se remplace quand il est battu,
+ * il ne s'empile pas.
+ */
+export type PersonalRecord = {
+  id: string;
+  athlete_id: string;
+  distance: string;
+  duration_sec: number;
+  achieved_on: string | null;
+  updated_at: string;
 };
 
 export type SessionStatus = "planned" | "completed" | "missed";
