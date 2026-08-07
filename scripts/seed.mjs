@@ -257,7 +257,27 @@ async function main() {
       avg_heart_rate: 132,
     },
   ];
-  verifier("activités", await admin.from("activities").insert(activites));
+  const { data: activitesInserees, error: erreurActivites } = await admin
+    .from("activities")
+    .insert(activites)
+    .select("id, external_id");
+  verifier("activités", { error: erreurActivites });
+
+  // Une trace pour la sortie longue seulement : la seconde (footing libre)
+  // couvre le cas d'une activité sans trace, tout aussi normal.
+  console.log("→ Trace de la sortie longue…");
+  const sortieLongue = activitesInserees.find((a) => a.external_id === "demo-sortie-longue");
+  verifier(
+    "trace d'activité",
+    await admin.from("activity_traces").insert({
+      activity_id: sortieLongue.id,
+      athlete_id: athleteIds[0],
+      t_s: [0, 1170, 2340, 3510, 4680],
+      heart_rate: [120, 145, 150, 148, 152],
+      pace_sec_per_km: [320, 310, 305, 315, 300],
+      altitude_m: [180, 220, 260, 240, 200],
+    })
+  );
 
   // Les triggers ont généré une notification par insertion : on repart
   // d'une liste courte et crédible.

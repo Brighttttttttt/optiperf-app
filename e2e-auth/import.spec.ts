@@ -115,6 +115,14 @@ test("déposer un fichier, le rattacher, ne saisir que le RPE", async ({ page })
   await expect(page.getByRole("heading", { name: "Historique" })).toBeVisible();
   await expect(page.getByText("Séance du jour")).toBeVisible();
   await expect(page.getByText("42 min").first()).toBeVisible();
+
+  // Le GPX déposé porte FC et position sur trois points : la courbe FC et
+  // celle d'allure doivent apparaître sur la fiche de la séance. Le fichier
+  // ne porte pas d'altitude (pas de balise <ele>) : pas de courbe altitude.
+  await page.getByText("Séance du jour").click();
+  await expect(page.getByRole("heading", { name: "Fréquence cardiaque" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Allure" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Altitude" })).toBeHidden();
 });
 
 // Régression : .tcx n'a aucun type de fichier associé sur iOS. Restreindre

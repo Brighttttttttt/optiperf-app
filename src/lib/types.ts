@@ -121,6 +121,22 @@ export type Activity = {
   created_at: string;
 };
 
+/**
+ * Trace d'une activité importée (FC/allure/altitude au fil du temps) : une
+ * ligne par activité, quatre tableaux parallèles plutôt qu'une ligne par
+ * point. Absente si le fichier ne portait ni FC, ni position, ni altitude
+ * exploitables.
+ */
+export type ActivityTrace = {
+  activity_id: string;
+  athlete_id: string;
+  t_s: number[];
+  heart_rate: (number | null)[] | null;
+  pace_sec_per_km: (number | null)[] | null;
+  altitude_m: (number | null)[] | null;
+  created_at: string;
+};
+
 export type AppNotification = {
   id: string;
   recipient_id: string;

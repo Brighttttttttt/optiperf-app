@@ -3,12 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
+import { ActivityTraceChart } from "@/components/ActivityTraceChart";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import {
   activitySourceLabel,
   sessionTypeLabel,
   type Activity,
+  type ActivityTrace,
   type Profile,
   type TrainingSession,
 } from "@/lib/types";
@@ -52,6 +54,14 @@ export default async function SessionPage({
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle<Activity>();
+
+    const { data: trace } = activity
+      ? await supabase
+          .from("activity_traces")
+          .select("*")
+          .eq("activity_id", activity.id)
+          .maybeSingle<ActivityTrace>()
+      : { data: null };
 
     return (
       <div>
@@ -119,6 +129,12 @@ export default async function SessionPage({
                 {formatDayLong(activity.date)}
                 {activity.file_name && ` · ${activity.file_name}`}
               </p>
+            </Card>
+          )}
+
+          {trace && (
+            <Card className="p-4">
+              <ActivityTraceChart trace={trace} />
             </Card>
           )}
         </div>

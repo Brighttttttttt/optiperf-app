@@ -131,6 +131,11 @@ export function ImportActivityForm({
           <input type="hidden" name="duration_min" value={lue.durationMin} />
           <input type="hidden" name="distance_m" value={lue.distanceM ?? ""} />
           <input type="hidden" name="avg_heart_rate" value={lue.avgHeartRate ?? ""} />
+          <input
+            type="hidden"
+            name="trace"
+            value={lue.trace ? JSON.stringify(lue.trace) : ""}
+          />
 
           {candidates.length > 0 && (
             <div>
