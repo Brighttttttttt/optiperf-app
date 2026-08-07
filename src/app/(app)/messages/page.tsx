@@ -13,45 +13,25 @@ export default async function MessagesPage() {
   const profile = await getSessionProfile();
   if (!user || !profile) redirect("/login");
 
-  // Interlocuteurs possibles : ses athlètes (coach) ou son coach (athlète).
-  let partners: Profile[] = [];
-  if (profile.role === "coach") {
-    const { data: links } = await supabase
-      .from("coach_athletes")
-      .select("athlete_id")
-      .eq("coach_id", user.id);
-    const ids = (links ?? []).map((l) => l.athlete_id);
-    if (ids.length > 0) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .in("id", ids)
-        .order("full_name");
-      partners = (data ?? []) as Profile[];
-    }
-  } else {
-    const { data: link } = await supabase
-      .from("coach_athletes")
-      .select("coach_id")
-      .eq("athlete_id", user.id)
-      .maybeSingle();
-    if (link) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", link.coach_id)
-        .maybeSingle();
-      if (data) partners = [data as Profile];
-    }
-  }
+  // La sécurité RLS ne laisse voir que les profils liés : tout profil autre
+  // que le sien est donc un interlocuteur — ses athlètes s'il est coach, son
+  // coach s'il est athlète. Une seule requête, en parallèle des messages.
+  const [partnersRes, msgRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*")
+      .neq("id", user.id)
+      .order("full_name"),
+    supabase
+      .from("messages")
+      .select("*")
+      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .order("created_at", { ascending: false })
+      .limit(500),
+  ]);
 
-  const { data: msgData } = await supabase
-    .from("messages")
-    .select("*")
-    .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-    .order("created_at", { ascending: false })
-    .limit(500);
-  const messages = (msgData ?? []) as Message[];
+  const partners = (partnersRes.data ?? []) as Profile[];
+  const messages = (msgRes.data ?? []) as Message[];
 
   const conversations = partners
     .map((partner) => {
