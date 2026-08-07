@@ -47,12 +47,19 @@ test("la fiche athlète affiche la moyenne des zones sur les dernières séances
   await expect(page.getByText("Z3 75 % · 59 min")).toBeVisible();
 });
 
+// Deux formulaires de la page se soumettent tous deux par un bouton
+// "Enregistrer" (nom, FC) : on cible celui qui contient le champ FC max
+// plutôt que le libellé seul, ambigu depuis que les deux coexistent.
+function formulaireFc(page: Page) {
+  return page.locator("form").filter({ has: page.getByLabel("FC max (bpm)") });
+}
+
 test("l'athlète enregistre sa FC max depuis les réglages", async ({ page }) => {
   await seConnecter(page, "nino@example.com");
   await page.goto("/settings");
 
   await page.getByLabel("FC max (bpm)").fill("192");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await formulaireFc(page).getByRole("button", { name: "Enregistrer" }).click();
 
   await expect(page.getByText("Enregistré.")).toBeVisible();
   await page.reload();
@@ -65,7 +72,7 @@ test("une FC de repos supérieure ou égale à la FC max est refusée", async ({
 
   await page.getByLabel("FC max (bpm)").fill("180");
   await page.getByLabel("FC repos (bpm)").fill("180");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await formulaireFc(page).getByRole("button", { name: "Enregistrer" }).click();
 
   await expect(page.getByText(/FC de repos doit être inférieure/)).toBeVisible();
 });
