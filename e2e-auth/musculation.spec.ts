@@ -71,7 +71,12 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   // lien — seule la ligne d'historique (SessionRow) mène à la fiche.
   // Retrouvée structurée là, prescription et réalisé.
   await pageAthlete.getByRole("link", { name: "Historique" }).click();
-  await pageAthlete.getByText(titre).click();
+  // Clique le lien lui-même plutôt qu'un <p> imbriqué : celui du titre porte
+  // `truncate`, contrairement au texte cliqué avec succès ailleurs dans la
+  // suite pour la même navigation (parcours.spec.ts). Vérifier l'URL avant
+  // le contenu suit le même repère que ces tests, déjà éprouvé.
+  await pageAthlete.getByRole("link", { name: new RegExp(titre) }).click();
+  await expect(pageAthlete).toHaveURL(/\/seances\//);
   await expect(pageAthlete.getByText("4 × 8 @ 60 kg")).toBeVisible();
   await expect(pageAthlete.getByText(/Fait · 4 × 8 @ 55 kg/)).toBeVisible();
 });

@@ -3,18 +3,35 @@
 import { useActionState, useState } from "react";
 import { updateSession } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
+import { WorkoutBlocksEditor } from "./WorkoutBlocksEditor";
 import { ExercisesEditor } from "./ExercisesEditor";
 import { inputClass, labelClass } from "@/lib/styles";
+import type { BlockDraft } from "@/lib/blocks";
 import type { ExerciseDraft } from "@/lib/exercises";
-import { LIMITS, SESSION_TYPES, type Exercise, type TrainingSession } from "@/lib/types";
+import {
+  LIMITS,
+  SESSION_TYPES,
+  type Exercise,
+  type TrainingSession,
+  type WorkoutBlock,
+} from "@/lib/types";
 
 export function EditSessionForm({
   session,
+  blocks = [],
   exercises = [],
 }: {
   session: TrainingSession;
+  blocks?: WorkoutBlock[];
   exercises?: Exercise[];
 }) {
+  const initialBlocks: BlockDraft[] = blocks.map((b) => ({
+    block_type: b.block_type as BlockDraft["block_type"],
+    duration_sec: b.duration_sec,
+    distance_m: b.distance_m,
+    target_pace_sec_per_km: b.target_pace_sec_per_km,
+    repetitions: b.repetitions,
+  }));
   const [state, action] = useActionState(updateSession, null);
   const [type, setType] = useState(session.type);
   const initialExercises: ExerciseDraft[] = exercises
@@ -115,7 +132,11 @@ export function EditSessionForm({
         />
       </div>
 
-      {type === "renfo" && <ExercisesEditor initial={initialExercises} />}
+      {type === "renfo" ? (
+        <ExercisesEditor initial={initialExercises} />
+      ) : (
+        <WorkoutBlocksEditor initial={initialBlocks} />
+      )}
 
       {state?.error && (
         <p className="text-sm font-medium text-rpe-max">{state.error}</p>

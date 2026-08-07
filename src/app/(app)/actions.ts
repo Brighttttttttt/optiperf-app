@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 import { validerTrace } from "@/lib/activites";
+import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
 
@@ -121,17 +122,30 @@ export async function planBatch(
     return { error: "Impossible d'enregistrer ces séances. Réessaie." };
   }
 
-  // Mêmes exercices pour toutes les séances créées d'un coup, comme les
-  // blocs de séance running : le formulaire n'en propose qu'un seul
-  // contenu, quel que soit le nombre d'athlètes ou de dates cochés.
-  if (type === "renfo" && creees) {
-    const exercices = validerExercices(String(formData.get("exercises") ?? ""));
-    if (exercices.length > 0) {
-      await supabase.from("exercises").insert(
+  // Même contenu structuré pour toutes les séances créées d'un coup : le
+  // formulaire n'en propose qu'un seul, quel que soit le nombre d'athlètes
+  // ou de dates cochés. Blocs (course) et exercices (musculation) viennent
+  // de champs distincts, l'éditeur affiché dépendant du type — au plus un
+  // des deux est jamais rempli.
+  if (creees) {
+    const blocs = validerBlocs(String(formData.get("blocks") ?? ""));
+    if (blocs.length > 0) {
+      await supabase.from("workout_blocks").insert(
         creees.flatMap((s) =>
-          exercices.map((e, position) => ({ session_id: s.id, position, ...e }))
+          blocs.map((b, position) => ({ session_id: s.id, position, ...b }))
         )
       );
+    }
+
+    if (type === "renfo") {
+      const exercices = validerExercices(String(formData.get("exercises") ?? ""));
+      if (exercices.length > 0) {
+        await supabase.from("exercises").insert(
+          creees.flatMap((s) =>
+            exercices.map((e, position) => ({ session_id: s.id, position, ...e }))
+          )
+        );
+      }
     }
   }
 
@@ -187,6 +201,14 @@ export async function updateSession(
 
   // Remplacés en bloc plutôt que fusionnés : le formulaire renvoie la liste
   // complète à chaque enregistrement, jamais une modification partielle.
+  await supabase.from("workout_blocks").delete().eq("session_id", id);
+  const blocs = validerBlocs(String(formData.get("blocks") ?? ""));
+  if (blocs.length > 0) {
+    await supabase
+      .from("workout_blocks")
+      .insert(blocs.map((b, position) => ({ session_id: id, position, ...b })));
+  }
+
   await supabase.from("exercises").delete().eq("session_id", id);
   if (type === "renfo") {
     const exercices = validerExercices(String(formData.get("exercises") ?? ""));

@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { planBatch } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
+import { WorkoutBlocksEditor } from "./WorkoutBlocksEditor";
 import { ExercisesEditor } from "./ExercisesEditor";
 import { IconCheck } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
@@ -186,7 +187,7 @@ export function BatchPlanner({
             Garder cette séance comme modèle réutilisable
           </label>
 
-          {content.type === "renfo" && <ExercisesEditor />}
+          {content.type === "renfo" ? <ExercisesEditor /> : <WorkoutBlocksEditor />}
         </div>
       </section>
 

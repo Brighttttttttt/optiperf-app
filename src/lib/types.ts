@@ -104,6 +104,23 @@ export type TrainingSession = {
   created_at: string;
 };
 
+/**
+ * Un bloc d'une séance running structurée (échauffement, intervalle,
+ * récupération, retour au calme). Le texte libre `description` reste le
+ * repli pour une séance simple.
+ */
+export type WorkoutBlock = {
+  id: string;
+  session_id: string;
+  position: number;
+  block_type: string;
+  duration_sec: number | null;
+  distance_m: number | null;
+  target_pace_sec_per_km: number | null;
+  repetitions: number | null;
+  created_at: string;
+};
+
 export type SessionTemplate = {
   id: string;
   coach_id: string;
