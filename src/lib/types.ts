@@ -58,6 +58,35 @@ export function sessionTypeLabel(type: string): string {
   return SESSION_TYPES.find((t) => t.value === type)?.label ?? type;
 }
 
+/**
+ * Exercice prescrit d'une séance de musculation. Le pendant `workout_blocks`
+ * pour le running : une table à part, pas des colonnes sur `sessions`.
+ */
+export type Exercise = {
+  id: string;
+  session_id: string;
+  position: number;
+  name: string;
+  sets: number;
+  reps: number;
+  charge_kg: number | null;
+  rest_sec: number | null;
+  created_at: string;
+};
+
+/** Ce que l'athlète a réellement fait sur un exercice — le pendant muscu de `athlete_comment`. */
+export type ExerciseLog = {
+  id: string;
+  exercise_id: string;
+  athlete_id: string;
+  sets_done: number | null;
+  reps_done: number | null;
+  charge_kg_done: number | null;
+  done: boolean;
+  athlete_comment: string | null;
+  updated_at: string;
+};
+
 export type TrainingSession = {
   id: string;
   athlete_id: string;

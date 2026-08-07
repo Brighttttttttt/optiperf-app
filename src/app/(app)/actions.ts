@@ -8,6 +8,7 @@ import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 import { validerTrace } from "@/lib/activites";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
+import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -115,9 +116,23 @@ export async function planBatch(
   );
 
   // La RLS refuse toute ligne visant un athlète hors du groupe du coach.
-  const { error } = await supabase.from("sessions").insert(rows);
+  const { data: creees, error } = await supabase.from("sessions").insert(rows).select("id");
   if (error) {
     return { error: "Impossible d'enregistrer ces séances. Réessaie." };
+  }
+
+  // Mêmes exercices pour toutes les séances créées d'un coup, comme les
+  // blocs de séance running : le formulaire n'en propose qu'un seul
+  // contenu, quel que soit le nombre d'athlètes ou de dates cochés.
+  if (type === "renfo" && creees) {
+    const exercices = validerExercices(String(formData.get("exercises") ?? ""));
+    if (exercices.length > 0) {
+      await supabase.from("exercises").insert(
+        creees.flatMap((s) =>
+          exercices.map((e, position) => ({ session_id: s.id, position, ...e }))
+        )
+      );
+    }
   }
 
   if (formData.get("save_template") === "on") {
@@ -152,6 +167,7 @@ export async function updateSession(
   if (description === undefined) return tooLong("Les consignes", LIMITS.description);
 
   const rawDuration = Number(formData.get("duration_planned_min"));
+  const type = String(formData.get("type") ?? "endurance");
 
   // Le trigger enforce_session_ownership garantit qu'un coach ne touche
   // qu'à la prescription, jamais au compte rendu de l'athlète.
@@ -160,7 +176,7 @@ export async function updateSession(
     .update({
       title,
       date,
-      type: String(formData.get("type") ?? "endurance"),
+      type,
       description,
       duration_planned_min:
         Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : null,
@@ -168,6 +184,18 @@ export async function updateSession(
     .eq("id", id)
     .eq("status", "planned");
   if (error) return { error: "Modification impossible. Réessaie." };
+
+  // Remplacés en bloc plutôt que fusionnés : le formulaire renvoie la liste
+  // complète à chaque enregistrement, jamais une modification partielle.
+  await supabase.from("exercises").delete().eq("session_id", id);
+  if (type === "renfo") {
+    const exercices = validerExercices(String(formData.get("exercises") ?? ""));
+    if (exercices.length > 0) {
+      await supabase
+        .from("exercises")
+        .insert(exercices.map((e, position) => ({ session_id: id, position, ...e })));
+    }
+  }
 
   revalidatePath("/", "layout");
   redirect(athleteId ? `/athletes/${athleteId}` : "/");
@@ -185,7 +213,7 @@ export async function completeSession(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const id = String(formData.get("session_id") ?? "");
   const rpe = Number(formData.get("rpe"));
   const duration = Number(formData.get("duration_actual_min"));
@@ -210,6 +238,17 @@ export async function completeSession(
     })
     .eq("id", id);
   if (error) return { error: "Impossible d'enregistrer. Réessaie." };
+
+  // Compte rendu exercice par exercice, pour une séance de musculation —
+  // enrichissement du compte rendu déjà enregistré ci-dessus, son échec ne
+  // doit pas faire perdre RPE/durée/commentaire.
+  const logs = validerExerciseLogs(String(formData.get("exercise_logs") ?? ""));
+  if (logs.length > 0) {
+    await supabase.from("exercise_logs").upsert(
+      logs.map((l) => ({ ...l, athlete_id: user.id, updated_at: new Date().toISOString() })),
+      { onConflict: "exercise_id" }
+    );
+  }
 
   revalidatePath("/", "layout");
   return { ok: true };
