@@ -41,7 +41,11 @@ export function SessionRow({
       <div className="flex-1 min-w-0">
         <p className="font-semibold truncate">{session.title}</p>
         <p className="text-[13px] text-ink-soft">
-          {sessionTypeLabel(session.type)}
+          {session.type === "renfo" ? (
+            <span className="font-semibold text-pine">Muscu</span>
+          ) : (
+            sessionTypeLabel(session.type)
+          )}
           {duration ? ` · ${formatDuration(duration)}` : ""}
           {session.coach_id === null ? " · libre" : ""}
         </p>

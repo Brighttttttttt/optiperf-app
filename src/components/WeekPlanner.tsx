@@ -139,7 +139,11 @@ export function WeekPlanner({
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{s.title}</p>
                   <p className="text-[13px] text-ink-soft">
-                    {sessionTypeLabel(s.type)}
+                    {s.type === "renfo" ? (
+                      <span className="font-semibold text-pine">Muscu</span>
+                    ) : (
+                      sessionTypeLabel(s.type)
+                    )}
                     {(() => {
                       const d = s.duration_actual_min ?? s.duration_planned_min;
                       return d ? ` · ${formatDuration(d)}` : "";
