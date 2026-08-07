@@ -11,7 +11,13 @@ test("redirige les visiteurs non connectés vers la connexion", async ({
 test("les routes protégées restent inaccessibles sans session", async ({
   page,
 }) => {
-  for (const path of ["/messages", "/notifications", "/settings", "/history"]) {
+  for (const path of [
+    "/messages",
+    "/notifications",
+    "/settings",
+    "/history",
+    "/planning",
+  ]) {
     await page.goto(path);
     await expect(page, `${path} doit rediriger`).toHaveURL(/\/login$/);
   }

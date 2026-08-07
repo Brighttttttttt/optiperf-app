@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   IconAthletes,
   IconBell,
+  IconCalendar,
   IconChat,
   IconHistory,
   IconPulse,
@@ -30,11 +31,18 @@ const TABS: Record<Role, Tab[]> = {
   ],
   athlete: [
     { href: "/", label: "Accueil", icon: IconPulse },
+    { href: "/planning", label: "Planning", icon: IconCalendar },
     { href: "/history", label: "Historique", icon: IconHistory },
     { href: "/messages", label: "Messages", icon: IconChat, badge: "messages" },
     { href: "/notifications", label: "Notifs", icon: IconBell, badge: "notifications" },
     { href: "/settings", label: "Réglages", icon: IconSettings },
   ],
+};
+
+const COLONNES: Record<number, string> = {
+  4: "grid grid-cols-4",
+  5: "grid grid-cols-5",
+  6: "grid grid-cols-6",
 };
 
 /**
@@ -115,7 +123,9 @@ export function BottomNav({
       aria-label="Navigation principale"
       className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-card/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]"
     >
-      <div className={`grid ${tabs.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+      {/* Classes écrites en toutes lettres : Tailwind ne voit pas une classe
+          construite à la volée. */}
+      <div className={COLONNES[tabs.length] ?? "grid grid-cols-5"}>
         {tabs.map((tab) => {
           const active =
             tab.href === "/"
@@ -127,7 +137,7 @@ export function BottomNav({
               key={tab.href}
               href={tab.href as never}
               aria-current={active ? "page" : undefined}
-              className={`relative flex flex-col items-center gap-0.5 pt-2.5 pb-2 text-[11px] font-medium transition-colors ${
+              className={`relative flex min-w-0 flex-col items-center gap-0.5 px-0.5 pt-2.5 pb-2 text-[11px] font-medium transition-colors ${
                 active ? "text-pine" : "text-ink-soft hover:text-ink"
               }`}
             >
@@ -140,7 +150,10 @@ export function BottomNav({
                   </span>
                 )}
               </span>
-              {tab.label}
+              {/* Six onglets sur un écran de téléphone : le libellé le plus
+                  long tient de justesse, mais ne doit jamais pousser la
+                  colonne ni passer à la ligne. */}
+              <span className="w-full truncate text-center">{tab.label}</span>
             </Link>
           );
         })}

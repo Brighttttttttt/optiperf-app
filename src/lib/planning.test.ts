@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   batchSummary,
   planningCalendar,
+  planningState,
   pluralize,
   startOfWeek,
   weekDays,
@@ -112,5 +113,26 @@ describe("batchSummary", () => {
   it("détaille le produit athlètes × dates", () => {
     expect(batchSummary(3, 4)).toBe("12 séances — 3 athlètes × 4 dates");
     expect(batchSummary(1, 1)).toBe("1 séance — 1 athlète × 1 date");
+  });
+});
+
+describe("planningState", () => {
+  it("lit d'abord le compte rendu, quelle que soit la date", () => {
+    // Une séance faite reste faite, même si son jour est passé — et une
+    // séance manquée ne redevient pas « à rattraper ».
+    expect(planningState({ status: "completed", date: "2026-08-01" }, NOW)).toBe("fait");
+    expect(planningState({ status: "completed", date: "2026-08-20" }, NOW)).toBe("fait");
+    expect(planningState({ status: "missed", date: "2026-08-01" }, NOW)).toBe("manquee");
+  });
+
+  it("distingue une séance à venir d'une séance en retard", () => {
+    expect(planningState({ status: "planned", date: "2026-08-06" }, NOW)).toBe("a-venir");
+    expect(planningState({ status: "planned", date: "2026-08-04" }, NOW)).toBe("a-rattraper");
+  });
+
+  it("compte le jour même comme à venir, pas comme en retard", () => {
+    // Une séance du jour se fait encore le soir : la signaler en retard dès
+    // le matin serait faux et culpabilisant.
+    expect(planningState({ status: "planned", date: "2026-08-05" }, NOW)).toBe("a-venir");
   });
 });
