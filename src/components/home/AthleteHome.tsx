@@ -5,9 +5,21 @@ import { AddSessionSheet } from "@/components/AddSessionSheet";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDayRelative, formatDuration, toISODate } from "@/lib/dates";
-import { sessionTypeLabel, type Objective, type Profile, type TrainingSession } from "@/lib/types";
+import {
+  sessionTypeLabel,
+  type Exercise,
+  type Objective,
+  type Profile,
+  type TrainingSession,
+} from "@/lib/types";
 
-function PlannedSessionCard({ session }: { session: TrainingSession }) {
+function PlannedSessionCard({
+  session,
+  exercises,
+}: {
+  session: TrainingSession;
+  exercises: Exercise[];
+}) {
   return (
     <Card className="p-4">
       <p className="font-display text-[13px] font-semibold uppercase tracking-[0.14em] text-pine">
@@ -30,6 +42,7 @@ function PlannedSessionCard({ session }: { session: TrainingSession }) {
       <SessionActions
         sessionId={session.id}
         defaultDuration={session.duration_planned_min}
+        exercises={exercises}
       />
     </Card>
   );
@@ -69,6 +82,25 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
   const metrics = computeMetrics(sessions, now);
   const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
   const overdue = sessions.filter((s) => s.status === "planned" && s.date < today);
+
+  // Exercices des séances de muscu encore planifiées : une seule requête
+  // pour toutes, plutôt qu'une par carte.
+  const idsRenfo = [...upcoming, ...overdue]
+    .filter((s) => s.type === "renfo")
+    .map((s) => s.id);
+  const exercisesBySession = new Map<string, Exercise[]>();
+  if (idsRenfo.length > 0) {
+    const { data } = await supabase
+      .from("exercises")
+      .select("*")
+      .in("session_id", idsRenfo)
+      .order("position");
+    for (const e of (data ?? []) as Exercise[]) {
+      const liste = exercisesBySession.get(e.session_id) ?? [];
+      liste.push(e);
+      exercisesBySession.set(e.session_id, liste);
+    }
+  }
   const objective =
     objectives.find((o) => o.target_date && o.target_date >= today) ??
     objectives[0];
@@ -130,7 +162,7 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
             </h2>
             <div className="space-y-3">
               {overdue.map((s) => (
-                <PlannedSessionCard key={s.id} session={s} />
+                <PlannedSessionCard key={s.id} session={s} exercises={exercisesBySession.get(s.id) ?? []} />
               ))}
             </div>
           </section>
@@ -154,7 +186,7 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
           ) : (
             <div className="space-y-3">
               {upcoming.map((s) => (
-                <PlannedSessionCard key={s.id} session={s} />
+                <PlannedSessionCard key={s.id} session={s} exercises={exercisesBySession.get(s.id) ?? []} />
               ))}
             </div>
           )}

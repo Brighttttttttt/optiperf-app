@@ -1,0 +1,61 @@
+import { expect, test, type Page } from "@playwright/test";
+
+/**
+ * Séances de musculation (#93-96), de bout en bout : le coach construit une
+ * séance exercice par exercice, l'athlète coche ce qu'il a réellement fait.
+ */
+
+const MOT_DE_PASSE = "optiperf-demo";
+
+async function seConnecter(page: Page, email: string) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Mot de passe").fill(MOT_DE_PASSE);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page).toHaveURL(/\/$|\/\?/);
+}
+
+test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait", async ({
+  page,
+  browser,
+}) => {
+  await seConnecter(page, "coach@example.com");
+
+  const titre = `Muscu e2e ${crypto.randomUUID().slice(0, 8)}`;
+  await page.goto("/planifier");
+
+  await page.getByLabel("Titre").fill(titre);
+  await page.getByLabel("Type").selectOption("renfo");
+  await page.getByRole("button", { name: "Nino Rossi" }).click();
+  await page.locator('button[aria-label^="20"]').first().click();
+
+  await page.getByLabel("Nom de l'exercice").fill("Squat");
+  await page.getByLabel("Séries").fill("4");
+  await page.getByLabel("Répétitions").fill("8");
+  await page.getByLabel("Charge (kg)").fill("60");
+
+  await page.getByRole("button", { name: /Planifier \d+ séance/ }).click();
+  await expect(page).toHaveURL(/planifiees=1/);
+
+  // L'athlète voit et complète la séance depuis son propre accueil.
+  const pageAthlete = await browser.newPage();
+  await seConnecter(pageAthlete, "nino@example.com");
+  await expect(pageAthlete.getByText(titre)).toBeVisible();
+
+  const carte = pageAthlete.locator("div").filter({ hasText: titre }).last();
+  await carte.getByRole("button", { name: "C'est fait" }).click();
+
+  await pageAthlete.getByRole("radio", { name: "6", exact: true }).click();
+  await pageAthlete.getByLabel("Durée réelle (minutes)").fill("45");
+  // La ligne d'exercice est préremplie avec la prescription : on ne
+  // corrige que la charge, réellement soulevée un peu plus légère.
+  await pageAthlete.getByLabel("Charge (kg)").fill("55");
+  await pageAthlete.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(pageAthlete.getByRole("button", { name: "C'est fait" })).toBeHidden();
+
+  // Retrouvée structurée sur la fiche de la séance, prescription et réalisé.
+  await pageAthlete.getByText(titre).click();
+  await expect(pageAthlete.getByText("4 × 8 @ 60 kg")).toBeVisible();
+  await expect(pageAthlete.getByText(/Fait · 4 × 8 @ 55 kg/)).toBeVisible();
+});

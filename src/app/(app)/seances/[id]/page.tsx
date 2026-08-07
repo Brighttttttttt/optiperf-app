@@ -5,6 +5,7 @@ import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
 import { ZoneBar } from "@/components/ZoneBar";
+import { ExercisesList } from "@/components/ExercisesList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import { repartitionZones } from "@/lib/zones";
@@ -13,6 +14,8 @@ import {
   sessionTypeLabel,
   type Activity,
   type ActivityTrace,
+  type Exercise,
+  type ExerciseLog,
   type Profile,
   type TrainingSession,
 } from "@/lib/types";
@@ -44,6 +47,13 @@ export default async function SessionPage({
     .eq("id", session.athlete_id)
     .maybeSingle<Pick<Profile, "full_name" | "fc_max">>();
 
+  const { data: exercisesData } = await supabase
+    .from("exercises")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("position");
+  const exercises = (exercisesData ?? []) as Exercise[];
+
   // Une séance déjà rapportée appartient au compte rendu de l'athlète : le
   // coach n'en réécrit pas la prescription après coup, il en garde la trace.
   if (session.status !== "planned") {
@@ -65,6 +75,15 @@ export default async function SessionPage({
           .maybeSingle<ActivityTrace>()
       : { data: null };
 
+    const { data: logsData } =
+      exercises.length > 0
+        ? await supabase
+            .from("exercise_logs")
+            .select("*")
+            .in("exercise_id", exercises.map((e) => e.id))
+        : { data: null };
+    const logs = (logsData ?? []) as ExerciseLog[];
+
     return (
       <div>
         <PageHeader
@@ -79,7 +98,7 @@ export default async function SessionPage({
             </span>
           )}
 
-          {(session.description || session.duration_planned_min) && (
+          {(session.description || session.duration_planned_min || exercises.length > 0) && (
             <Card className="p-4">
               <p className="text-[13px] font-semibold text-ink-soft">Prévu</p>
               <p className="mt-1 text-[15px]">
@@ -93,6 +112,7 @@ export default async function SessionPage({
                   {session.description}
                 </p>
               )}
+              <ExercisesList exercises={exercises} logs={logs} />
             </Card>
           )}
 
@@ -158,7 +178,7 @@ export default async function SessionPage({
         backHref={backHref}
       />
       <div className="px-5">
-        <EditSessionForm session={session} />
+        <EditSessionForm session={session} exercises={exercises} />
       </div>
     </div>
   );
