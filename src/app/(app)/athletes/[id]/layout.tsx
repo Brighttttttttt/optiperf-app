@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
-import { PageHeader } from "@/components/ui";
+import { AthleteHeader } from "@/components/AthleteHeader";
 import { AthleteNav } from "@/components/AthleteNav";
 import type { Profile } from "@/lib/types";
 
@@ -47,7 +47,7 @@ export default async function AthleteLayout({
 
   return (
     <div>
-      <PageHeader eyebrow="Athlète" title={athlete.full_name} backHref="/" />
+      <AthleteHeader athleteId={athlete.id} title={athlete.full_name} />
       <div className="px-5">
         <AthleteNav athleteId={athlete.id} roster={roster} />
       </div>
