@@ -1,17 +1,24 @@
+import { Decoder, Stream } from "@garmin/fitsdk";
 import { toISODate } from "./dates";
 
 /**
- * Lecture des fichiers exportés par les montres (GPX, TCX).
+ * Lecture des fichiers exportés par les montres (GPX, TCX, FIT).
  *
  * On n'en tire que ce dont le suivi se sert : quand, combien de temps, quelle
  * distance, à quelle fréquence cardiaque moyenne. Ni trace GPS ni détail
  * seconde par seconde — l'app n'en fait aujourd'hui aucun usage, et ne pas
  * les stocker évite d'avoir à décider qui peut les voir.
  *
- * Analyse sans dépendance : ces formats sont du XML, et on n'y cherche qu'une
- * poignée de balises. Le prix à payer est d'être explicite sur la structure —
- * en TCX notamment, `DistanceMeters` apparaît à la fois dans le tour et dans
- * chacun de ses points, et `Value` sert aussi bien à la moyenne qu'au maximum.
+ * GPX et TCX sont du XML : on y cherche une poignée de balises par expression
+ * régulière, sans dépendance. Le prix à payer est d'être explicite sur la
+ * structure — en TCX notamment, `DistanceMeters` apparaît à la fois dans le
+ * tour et dans chacun de ses points, et `Value` sert aussi bien à la moyenne
+ * qu'au maximum.
+ *
+ * FIT est binaire : refaire soi-même le décodage (définitions de champs,
+ * échelles, types, CRC) introduirait des erreurs silencieuses bien plus
+ * probables qu'avec du XML lu par expressions régulières. Le SDK officiel
+ * Garmin (`@garmin/fitsdk`) fait ce travail.
  */
 
 export type ActiviteLue = {
@@ -45,15 +52,13 @@ export function formatDistance(metres: number): string {
 }
 
 /**
- * Empreinte du contenu, qui sert d'identifiant de source : c'est elle qui
- * rend un second dépôt du même fichier détectable, la contrainte SQL faisant
- * le reste. Calculée par le navigateur, comme la lecture.
+ * Empreinte des octets bruts, qui sert d'identifiant de source : c'est elle
+ * qui rend un second dépôt du même fichier détectable, la contrainte SQL
+ * faisant le reste. Calculée par le navigateur, comme la lecture — sur les
+ * octets et non le texte décodé, pour valoir aussi pour un FIT binaire.
  */
-export async function empreinteFichier(contenu: string): Promise<string> {
-  const condense = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(contenu)
-  );
+export async function empreinteFichier(contenu: ArrayBuffer): Promise<string> {
+  const condense = await crypto.subtle.digest("SHA-256", contenu);
   return [...new Uint8Array(condense)]
     .map((o) => o.toString(16).padStart(2, "0"))
     .join("");
@@ -248,12 +253,70 @@ export function lireTcx(xml: string): LectureActivite {
 }
 
 /**
+ * FIT : contrairement au TCX, on préfère le message `session` (le total de
+ * l'activité entière) au `lap` — à défaut, on additionne les tours, comme
+ * pour le TCX : c'est le chiffre que l'athlète voit sur son écran, pas un
+ * recalcul point par point.
+ */
+function lireFit(stream: Stream): LectureActivite {
+  const decoder = new Decoder(stream);
+  if (!decoder.checkIntegrity()) {
+    return echec("Ce fichier FIT est corrompu ou incomplet.");
+  }
+
+  const { messages } = decoder.read();
+  const sessions = messages.sessionMesgs ?? [];
+  const laps = messages.lapMesgs ?? [];
+  if (sessions.length === 0 && laps.length === 0) {
+    return echec("Aucune séance trouvée : ce fichier FIT n'est pas exploitable.");
+  }
+
+  const debut = sessions[0]?.startTime ?? laps[0]?.startTime;
+  if (!(debut instanceof Date)) {
+    return echec("La date de début du fichier est illisible.");
+  }
+
+  const secondes =
+    sessions[0]?.totalElapsedTime ??
+    laps.reduce((s, l) => s + (l.totalElapsedTime ?? 0), 0);
+  const distanceM =
+    sessions[0]?.totalDistance ??
+    (laps.length > 0 ? laps.reduce((s, l) => s + (l.totalDistance ?? 0), 0) : null);
+  const avgHeartRate =
+    sessions[0]?.avgHeartRate ??
+    moyenne(laps.map((l) => l.avgHeartRate).filter((h): h is number => h !== undefined));
+
+  return assembler(debut, secondes, distanceM, avgHeartRate);
+}
+
+/**
  * Point d'entrée : choisit l'analyseur d'après le contenu, l'extension ne
  * servant que de repli. Un fichier renommé reste lisible.
+ *
+ * Le FIT étant binaire, sa détection ne peut pas se faire sur du texte déjà
+ * décodé : le navigateur doit fournir les octets bruts (`ArrayBuffer`) pour
+ * qu'on la tente avant de se rabattre sur un décodage XML.
  */
-export function lireFichierActivite(contenu: string, nomFichier = ""): LectureActivite {
+export function lireFichierActivite(
+  contenu: string | ArrayBuffer,
+  nomFichier = ""
+): LectureActivite {
+  if (contenu instanceof ArrayBuffer) {
+    if (contenu.byteLength > TAILLE_MAX_OCTETS) {
+      return echec("Fichier trop volumineux : 12 Mo au maximum.");
+    }
+    if (contenu.byteLength === 0) {
+      return echec("Le fichier est vide.");
+    }
+    const stream = Stream.fromArrayBuffer(contenu);
+    if (Decoder.isFIT(stream)) {
+      return lireFit(stream);
+    }
+    return lireFichierActivite(new TextDecoder().decode(contenu), nomFichier);
+  }
+
   if (contenu.length > TAILLE_MAX_OCTETS) {
-    return echec("Fichier trop volumineux : 5 Mo au maximum.");
+    return echec("Fichier trop volumineux : 12 Mo au maximum.");
   }
   const texte = contenu.trim();
   if (texte === "") {
@@ -267,10 +330,10 @@ export function lireFichierActivite(contenu: string, nomFichier = ""): LectureAc
   if (extension === "tcx") return lireTcx(texte);
   if (extension === "gpx") return lireGpx(texte);
 
-  if (/\.fit$/i.test(nomFichier)) {
+  if (extension === "fit") {
     return echec(
-      "Les fichiers FIT ne sont pas encore acceptés. Exporte ta séance en TCX ou en GPX."
+      "Ce fichier .fit n'a pas pu être lu : il ne correspond pas au format attendu."
     );
   }
-  return echec("Format non reconnu : dépose un fichier GPX ou TCX.");
+  return echec("Format non reconnu : dépose un fichier GPX, TCX ou FIT.");
 }
