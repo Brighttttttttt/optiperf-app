@@ -18,13 +18,25 @@ export async function CoachDashboard({ coach }: { coach: Profile }) {
   const d28 = toISODate(addDays(now, -27));
   const d7ahead = toISODate(addDays(now, 7));
 
-  const { data: links } = await supabase
-    .from("coach_athletes")
-    .select("athlete_id")
-    .eq("coach_id", coach.id);
-  const ids = (links ?? []).map((l) => l.athlete_id);
+  // La sécurité RLS restreint déjà chaque table aux athlètes de ce coach :
+  // inutile de récupérer d'abord la liste des liaisons pour filtrer ensuite.
+  // Les trois requêtes partent donc ensemble, au lieu d'attendre la première.
+  const [profilesRes, sessionsRes, objectivesRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("role", "athlete").order("full_name"),
+    supabase
+      .from("sessions")
+      .select("*")
+      .gte("date", d28)
+      .lte("date", d7ahead)
+      .order("date"),
+    supabase.from("objectives").select("*"),
+  ]);
 
-  if (ids.length === 0) {
+  const athletes = (profilesRes.data ?? []) as Profile[];
+  const allSessions = (sessionsRes.data ?? []) as TrainingSession[];
+  const allObjectives = (objectivesRes.data ?? []) as Objective[];
+
+  if (athletes.length === 0) {
     return (
       <div>
         <PageHeader eyebrow="Mon groupe" title="Athlètes" />
@@ -40,22 +52,6 @@ export async function CoachDashboard({ coach }: { coach: Profile }) {
       </div>
     );
   }
-
-  const [profilesRes, sessionsRes, objectivesRes] = await Promise.all([
-    supabase.from("profiles").select("*").in("id", ids).order("full_name"),
-    supabase
-      .from("sessions")
-      .select("*")
-      .in("athlete_id", ids)
-      .gte("date", d28)
-      .lte("date", d7ahead)
-      .order("date"),
-    supabase.from("objectives").select("*").in("athlete_id", ids),
-  ]);
-
-  const athletes = (profilesRes.data ?? []) as Profile[];
-  const allSessions = (sessionsRes.data ?? []) as TrainingSession[];
-  const allObjectives = (objectivesRes.data ?? []) as Objective[];
 
   const cards = athletes.map((athlete) => {
     const sessions = allSessions.filter((s) => s.athlete_id === athlete.id);
