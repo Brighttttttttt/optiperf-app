@@ -65,10 +65,17 @@ test("le coach construit une séance de fractionné bloc par bloc", async ({ pag
     .last();
   await ligne.getByRole("link", { name: "Modifier" }).click();
 
-  await expect(page.getByText("Échauffement")).toBeVisible();
-  await expect(page.getByText("15 min", { exact: true })).toBeVisible();
-  await expect(page.getByText("4 × Intervalle")).toBeVisible();
-  await expect(page.getByText("3 min · 4:30 /km")).toBeVisible();
+  // « Modifier » mène toujours au formulaire d'édition tant que la séance
+  // est planifiée (page.tsx ne réserve la fiche en lecture seule — et donc
+  // WorkoutBlocksList — qu'aux séances déjà rapportées) : on vérifie que les
+  // blocs reviennent correctement préremplis, plutôt qu'un affichage en
+  // lecture seule inatteignable depuis ce parcours.
+  await expect(page.getByLabel("Type de bloc").nth(0)).toHaveValue("echauffement");
+  await expect(page.getByLabel("Durée (min)").nth(0)).toHaveValue("15");
+  await expect(page.getByLabel("Type de bloc").nth(1)).toHaveValue("intervalle");
+  await expect(page.getByLabel("Durée (min)").nth(1)).toHaveValue("3");
+  await expect(page.getByLabel("Allure cible (min/km)").nth(1)).toHaveValue("4:30");
+  await expect(page.getByLabel("Répétitions").nth(1)).toHaveValue("4");
 });
 
 test("une séance simple reste aussi rapide à créer, sans bloc", async ({ page }) => {
