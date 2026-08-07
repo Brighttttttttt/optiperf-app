@@ -45,10 +45,13 @@ test("le coach construit une séance de fractionné bloc par bloc", async ({ pag
   await page.getByRole("button", { name: /Planifier \d+ séance/ }).click();
   await expect(page).toHaveURL(/planifiees=1/);
 
-  // La séance créée : via la fiche de Léa, onglet Planning.
+  // La séance créée : via la fiche de Léa, onglet Planning. Le titre n'est
+  // qu'un texte dans la ligne ; seul « Modifier », à côté, mène à la fiche —
+  // on cible la ligne contenant le titre pour retrouver son lien.
   await page.getByText("Léa Martin").click();
   await page.getByRole("link", { name: "Planning" }).click();
-  await page.getByText(titre).click();
+  const ligne = page.locator("div").filter({ hasText: titre }).last();
+  await ligne.getByRole("link", { name: "Modifier" }).click();
 
   await expect(page.getByText("Échauffement")).toBeVisible();
   await expect(page.getByText("15 min", { exact: true })).toBeVisible();
