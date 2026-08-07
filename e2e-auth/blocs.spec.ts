@@ -51,11 +51,18 @@ test("le coach construit une séance de fractionné bloc par bloc", async ({ pag
   await expect(page).toHaveURL(/planifiees=1/);
 
   // La séance créée : via la fiche de Léa, onglet Planning. Le titre n'est
-  // qu'un texte dans la ligne ; seul « Modifier », à côté, mène à la fiche —
-  // on cible la ligne contenant le titre pour retrouver son lien.
+  // qu'un texte dans la ligne ; seul « Modifier », à côté, mène à la fiche.
+  // Le titre et « Modifier » sont dans des div frères (pas l'une dans
+  // l'autre) : filtrer sur le seul texte prend la div la plus profonde qui
+  // le contient, sans le lien. Exiger aussi le lien comme descendant
+  // retombe sur la ligne qui les contient tous les deux.
   await page.getByText("Léa Martin").click();
   await page.getByRole("link", { name: "Planning" }).click();
-  const ligne = page.locator("div").filter({ hasText: titre }).last();
+  const ligne = page
+    .locator("div")
+    .filter({ hasText: titre })
+    .filter({ has: page.getByRole("link", { name: "Modifier" }) })
+    .last();
   await ligne.getByRole("link", { name: "Modifier" }).click();
 
   await expect(page.getByText("Échauffement")).toBeVisible();
