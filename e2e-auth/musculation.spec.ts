@@ -19,6 +19,11 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   page,
   browser,
 }) => {
+  // Deux connexions complètes, une planification à plusieurs champs et un
+  // compte rendu : sensiblement plus d'étapes que les autres parcours à deux
+  // comptes, qui dépassent le timeout par défaut (30 s) en CI.
+  test.setTimeout(60_000);
+
   await seConnecter(page, "coach@example.com");
 
   const titre = `Muscu e2e ${crypto.randomUUID().slice(0, 8)}`;
