@@ -66,7 +66,11 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
 
   await expect(carte.getByRole("button", { name: "C'est fait" })).toBeHidden();
 
-  // Retrouvée structurée sur la fiche de la séance, prescription et réalisé.
+  // Une fois complétée, la séance quitte l'accueil (qui ne montre que les
+  // séances encore "planned") et son titre n'y est de toute façon pas un
+  // lien — seule la ligne d'historique (SessionRow) mène à la fiche.
+  // Retrouvée structurée là, prescription et réalisé.
+  await pageAthlete.getByRole("link", { name: "Historique" }).click();
   await pageAthlete.getByText(titre).click();
   await expect(pageAthlete.getByText("4 × 8 @ 60 kg")).toBeVisible();
   await expect(pageAthlete.getByText(/Fait · 4 × 8 @ 55 kg/)).toBeVisible();
