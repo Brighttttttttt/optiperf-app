@@ -3,10 +3,25 @@
 import { useActionState } from "react";
 import { updateSession } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
+import { WorkoutBlocksEditor } from "./WorkoutBlocksEditor";
 import { inputClass, labelClass } from "@/lib/styles";
-import { LIMITS, SESSION_TYPES, type TrainingSession } from "@/lib/types";
+import type { BlockDraft } from "@/lib/blocks";
+import { LIMITS, SESSION_TYPES, type TrainingSession, type WorkoutBlock } from "@/lib/types";
 
-export function EditSessionForm({ session }: { session: TrainingSession }) {
+export function EditSessionForm({
+  session,
+  blocks = [],
+}: {
+  session: TrainingSession;
+  blocks?: WorkoutBlock[];
+}) {
+  const initialBlocks: BlockDraft[] = blocks.map((b) => ({
+    block_type: b.block_type as BlockDraft["block_type"],
+    duration_sec: b.duration_sec,
+    distance_m: b.distance_m,
+    target_pace_sec_per_km: b.target_pace_sec_per_km,
+    repetitions: b.repetitions,
+  }));
   const [state, action] = useActionState(updateSession, null);
 
   return (
@@ -95,6 +110,8 @@ export function EditSessionForm({ session }: { session: TrainingSession }) {
           className={inputClass}
         />
       </div>
+
+      <WorkoutBlocksEditor initial={initialBlocks} />
 
       {state?.error && (
         <p className="text-sm font-medium text-rpe-max">{state.error}</p>

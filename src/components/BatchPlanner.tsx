@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { planBatch } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
+import { WorkoutBlocksEditor } from "./WorkoutBlocksEditor";
 import { IconCheck } from "./Icons";
 import { btnGhost, inputClass, labelClass } from "@/lib/styles";
 import { LIMITS, SESSION_TYPES, type Profile, type SessionTemplate } from "@/lib/types";
@@ -184,6 +185,8 @@ export function BatchPlanner({
             />
             Garder cette séance comme modèle réutilisable
           </label>
+
+          <WorkoutBlocksEditor />
         </div>
       </section>
 

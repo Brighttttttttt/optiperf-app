@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 import { validerTrace } from "@/lib/activites";
+import { validerBlocs } from "@/lib/blocks";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -114,9 +115,21 @@ export async function planBatch(
   );
 
   // La RLS refuse toute ligne visant un athlète hors du groupe du coach.
-  const { error } = await supabase.from("sessions").insert(rows);
+  const { data: creees, error } = await supabase.from("sessions").insert(rows).select("id");
   if (error) {
     return { error: "Impossible d'enregistrer ces séances. Réessaie." };
+  }
+
+  // Mêmes blocs pour toutes les séances créées d'un coup : le formulaire n'en
+  // propose qu'un seul contenu, quel que soit le nombre d'athlètes ou de
+  // dates cochés.
+  const blocs = validerBlocs(String(formData.get("blocks") ?? ""));
+  if (blocs.length > 0 && creees) {
+    await supabase.from("workout_blocks").insert(
+      creees.flatMap((s) =>
+        blocs.map((b, position) => ({ session_id: s.id, position, ...b }))
+      )
+    );
   }
 
   if (formData.get("save_template") === "on") {
@@ -167,6 +180,16 @@ export async function updateSession(
     .eq("id", id)
     .eq("status", "planned");
   if (error) return { error: "Modification impossible. Réessaie." };
+
+  // Remplacés en bloc plutôt que fusionnés : le formulaire renvoie la liste
+  // complète à chaque enregistrement, jamais une modification partielle.
+  await supabase.from("workout_blocks").delete().eq("session_id", id);
+  const blocs = validerBlocs(String(formData.get("blocks") ?? ""));
+  if (blocs.length > 0) {
+    await supabase
+      .from("workout_blocks")
+      .insert(blocs.map((b, position) => ({ session_id: id, position, ...b })));
+  }
 
   revalidatePath("/", "layout");
   redirect(athleteId ? `/athletes/${athleteId}` : "/");

@@ -4,6 +4,7 @@ import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
+import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import {
@@ -13,6 +14,7 @@ import {
   type ActivityTrace,
   type Profile,
   type TrainingSession,
+  type WorkoutBlock,
 } from "@/lib/types";
 
 export default async function SessionPage({
@@ -41,6 +43,13 @@ export default async function SessionPage({
     .select("full_name")
     .eq("id", session.athlete_id)
     .maybeSingle<Pick<Profile, "full_name">>();
+
+  const { data: blocksData } = await supabase
+    .from("workout_blocks")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("position");
+  const blocks = (blocksData ?? []) as WorkoutBlock[];
 
   // Une séance déjà rapportée appartient au compte rendu de l'athlète : le
   // coach n'en réécrit pas la prescription après coup, il en garde la trace.
@@ -77,7 +86,7 @@ export default async function SessionPage({
             </span>
           )}
 
-          {(session.description || session.duration_planned_min) && (
+          {(session.description || session.duration_planned_min || blocks.length > 0) && (
             <Card className="p-4">
               <p className="text-[13px] font-semibold text-ink-soft">Prévu</p>
               <p className="mt-1 text-[15px]">
@@ -91,6 +100,7 @@ export default async function SessionPage({
                   {session.description}
                 </p>
               )}
+              <WorkoutBlocksList blocks={blocks} />
             </Card>
           )}
 
@@ -150,7 +160,7 @@ export default async function SessionPage({
         backHref={backHref}
       />
       <div className="px-5">
-        <EditSessionForm session={session} />
+        <EditSessionForm session={session} blocks={blocks} />
       </div>
     </div>
   );
