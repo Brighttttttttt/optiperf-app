@@ -17,6 +17,11 @@ async function seConnecter(page: Page, email: string) {
 }
 
 test("le coach construit une séance de fractionné bloc par bloc", async ({ page }) => {
+  // Connexion, planification à deux blocs (plusieurs champs chacun) puis
+  // navigation jusqu'à la fiche : plus d'étapes que le budget par défaut
+  // (30 s) ne supporte en CI.
+  test.setTimeout(60_000);
+
   await seConnecter(page, "coach@example.com");
 
   const titre = `Fractionné e2e ${crypto.randomUUID().slice(0, 8)}`;
