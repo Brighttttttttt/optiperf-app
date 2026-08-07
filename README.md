@@ -26,6 +26,10 @@ migrations.
    - `005_rappel_planification.sql` — rappel hebdomadaire au coach (nécessite l'extension `pg_cron`)
    - `006_droits_explicites.sql` — droits du rôle d'administration, pour qu'une base se reconstruise depuis le dépôt seul
    - `007_activites_importees.sql` — activités importées d'une montre, reliées facultativement à une séance
+   - `008_notification_messages.sql` — notification à la réception d'un message
+   - `009_traces_activites.sql` — trace FC/allure/altitude d'une activité importée
+   - `010_zones_fc.sql` — FC max/repos de l'athlète, base du calcul des zones de fréquence cardiaque
+   - `012_records_vma.sql` — records personnels par distance standard et VMA de l'athlète
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
