@@ -341,6 +341,42 @@ export async function updateName(
   return { ok: true };
 }
 
+export async function updateHeartRateRefs(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const nombreOuNull = (champ: string, min: number, max: number) => {
+    const brut = String(formData.get(champ) ?? "").trim();
+    if (brut === "") return null;
+    const valeur = Number(brut);
+    if (!Number.isFinite(valeur) || valeur < min || valeur > max) return "invalide" as const;
+    return Math.round(valeur);
+  };
+
+  const fcMax = nombreOuNull("fc_max", 100, 230);
+  if (fcMax === "invalide") {
+    return { error: "La FC max doit être comprise entre 100 et 230 bpm." };
+  }
+  const fcRepos = nombreOuNull("fc_repos", 25, 120);
+  if (fcRepos === "invalide") {
+    return { error: "La FC de repos doit être comprise entre 25 et 120 bpm." };
+  }
+  if (fcMax !== null && fcRepos !== null && fcRepos >= fcMax) {
+    return { error: "La FC de repos doit être inférieure à la FC max." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ fc_max: fcMax, fc_repos: fcRepos })
+    .eq("id", user.id);
+  if (error) return { error: "Impossible d'enregistrer." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 // ---------- Groupe du coach ----------
 
 export async function removeAthlete(formData: FormData) {

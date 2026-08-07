@@ -263,6 +263,13 @@ async function main() {
     .select("id, external_id");
   verifier("activités", { error: erreurActivites });
 
+  // FC max de Léa : sans elle, la trace ci-dessous ne produirait aucune zone
+  // à afficher.
+  verifier(
+    "FC max",
+    await admin.from("profiles").update({ fc_max: 188 }).eq("id", athleteIds[0])
+  );
+
   // Une trace pour la sortie longue seulement : la seconde (footing libre)
   // couvre le cas d'une activité sans trace, tout aussi normal.
   console.log("→ Trace de la sortie longue…");

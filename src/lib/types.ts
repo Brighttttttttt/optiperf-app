@@ -17,6 +17,10 @@ export type Profile = {
   role: Role;
   full_name: string;
   invite_code: string | null;
+  /** Base du calcul des zones de fréquence cardiaque (src/lib/zones.ts). */
+  fc_max: number | null;
+  /** Facultative, sans usage aujourd'hui : pas de calcul par réserve. */
+  fc_repos: number | null;
   created_at: string;
 };
 
