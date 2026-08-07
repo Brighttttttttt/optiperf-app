@@ -3,10 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, StatTile, StatusBadge } from "@/components/ui";
 import { ObjectiveForm } from "@/components/ObjectiveForm";
 import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
+import { ZoneBar } from "@/components/ZoneBar";
 import { deleteObjective } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
-import type { Objective, Profile, TrainingSession } from "@/lib/types";
+import { additionnerZones, repartitionZones, type RepartitionZones } from "@/lib/zones";
+import type { Activity, ActivityTrace, Objective, Profile, TrainingSession } from "@/lib/types";
+
+const ZONES_VIDES: RepartitionZones = { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 };
 
 export default async function AthleteFichePage({
   params,
@@ -43,6 +47,52 @@ export default async function AthleteFichePage({
   const objectives = (objectivesRes.data ?? []) as Objective[];
   const metrics = computeMetrics(sessions, now);
 
+  // Moyenne des zones sur les 10 dernières séances rapportées, pas sur la
+  // fenêtre de 28 jours ci-dessus : un athlète qui s'entraîne peu doit
+  // pouvoir remonter plus loin pour ses 10 dernières.
+  let zonesMoyennes: RepartitionZones | null = null;
+  if (athlete.fc_max) {
+    const { data: dernieresSeances } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("athlete_id", id)
+      .eq("status", "completed")
+      .order("date", { ascending: false })
+      .limit(10);
+    const sessionIds = (dernieresSeances ?? []).map((s) => s.id);
+
+    if (sessionIds.length > 0) {
+      const { data: activitesLiees } = await supabase
+        .from("activities")
+        .select("id, session_id")
+        .in("session_id", sessionIds)
+        .order("started_at", { ascending: false });
+
+      // Une séance peut agréger plusieurs activités : la plus récente la
+      // représente, comme dans l'historique et la fiche de la séance.
+      const activiteIdBySession = new Map<string, string>();
+      for (const a of (activitesLiees ?? []) as Pick<Activity, "id" | "session_id">[]) {
+        if (a.session_id && !activiteIdBySession.has(a.session_id)) {
+          activiteIdBySession.set(a.session_id, a.id);
+        }
+      }
+      const activiteIds = [...activiteIdBySession.values()];
+
+      if (activiteIds.length > 0) {
+        const { data: traces } = await supabase
+          .from("activity_traces")
+          .select("t_s, heart_rate")
+          .in("activity_id", activiteIds);
+
+        const fcMax = athlete.fc_max;
+        zonesMoyennes = ((traces ?? []) as Pick<ActivityTrace, "t_s" | "heart_rate">[]).reduce(
+          (acc, t) => additionnerZones(acc, repartitionZones(t.t_s, t.heart_rate ?? [], fcMax)),
+          ZONES_VIDES
+        );
+      }
+    }
+  }
+
   return (
     <div className="px-5 space-y-5">
       <Card className="p-4">
@@ -68,6 +118,12 @@ export default async function AthleteFichePage({
           <StatTile value={String(Math.round(metrics.weeklyLoad))} label="Charge" />
         </div>
       </Card>
+
+      {zonesMoyennes && (
+        <Card className="p-4">
+          <ZoneBar titre="Zones (10 dernières séances)" zones={zonesMoyennes} />
+        </Card>
+      )}
 
       <section>
         <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">
