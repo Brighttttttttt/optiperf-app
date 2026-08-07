@@ -36,16 +36,22 @@ test("le coach construit une séance de fractionné bloc par bloc", async ({ pag
 
   await page.getByRole("button", { name: "Structurer en blocs" }).click();
 
+  // Le formulaire de planification porte sa propre « Durée (min) » (durée
+  // globale de la séance) : scoper chaque champ à la ligne de son bloc
+  // (repère : bg-surface, propre à WorkoutBlocksEditor) évite de viser ce
+  // champ général au lieu du premier bloc.
+  const lignesBlocs = page.locator("div.bg-surface");
+
   // Bloc 1 : échauffement, type par défaut.
   await page.getByRole("button", { name: "Ajouter un bloc" }).click();
-  await page.getByLabel("Durée (min)").nth(0).fill("15");
+  await lignesBlocs.nth(0).getByLabel("Durée (min)").fill("15");
 
   // Bloc 2 : intervalle répété, avec allure cible.
   await page.getByRole("button", { name: "Ajouter un bloc" }).click();
-  await page.getByLabel("Type de bloc").nth(1).selectOption("intervalle");
-  await page.getByLabel("Durée (min)").nth(1).fill("3");
-  await page.getByLabel("Allure cible (min/km)").nth(1).fill("4:30");
-  await page.getByLabel("Répétitions").nth(1).fill("4");
+  await lignesBlocs.nth(1).getByLabel("Type de bloc").selectOption("intervalle");
+  await lignesBlocs.nth(1).getByLabel("Durée (min)").fill("3");
+  await lignesBlocs.nth(1).getByLabel("Allure cible (min/km)").fill("4:30");
+  await lignesBlocs.nth(1).getByLabel("Répétitions").fill("4");
 
   await page.getByRole("button", { name: /Planifier \d+ séance/ }).click();
   await expect(page).toHaveURL(/planifiees=1/);
@@ -70,12 +76,12 @@ test("le coach construit une séance de fractionné bloc par bloc", async ({ pag
   // WorkoutBlocksList — qu'aux séances déjà rapportées) : on vérifie que les
   // blocs reviennent correctement préremplis, plutôt qu'un affichage en
   // lecture seule inatteignable depuis ce parcours.
-  await expect(page.getByLabel("Type de bloc").nth(0)).toHaveValue("echauffement");
-  await expect(page.getByLabel("Durée (min)").nth(0)).toHaveValue("15");
-  await expect(page.getByLabel("Type de bloc").nth(1)).toHaveValue("intervalle");
-  await expect(page.getByLabel("Durée (min)").nth(1)).toHaveValue("3");
-  await expect(page.getByLabel("Allure cible (min/km)").nth(1)).toHaveValue("4:30");
-  await expect(page.getByLabel("Répétitions").nth(1)).toHaveValue("4");
+  await expect(lignesBlocs.nth(0).getByLabel("Type de bloc")).toHaveValue("echauffement");
+  await expect(lignesBlocs.nth(0).getByLabel("Durée (min)")).toHaveValue("15");
+  await expect(lignesBlocs.nth(1).getByLabel("Type de bloc")).toHaveValue("intervalle");
+  await expect(lignesBlocs.nth(1).getByLabel("Durée (min)")).toHaveValue("3");
+  await expect(lignesBlocs.nth(1).getByLabel("Allure cible (min/km)")).toHaveValue("4:30");
+  await expect(lignesBlocs.nth(1).getByLabel("Répétitions")).toHaveValue("4");
 });
 
 test("une séance simple reste aussi rapide à créer, sans bloc", async ({ page }) => {
