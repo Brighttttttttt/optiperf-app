@@ -56,7 +56,7 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   // vérification finale porterait sur les 5 boutons de la page.
   const carte = pageAthlete.locator("div.rounded-2xl").filter({ hasText: titre });
   // Distinguable d'une sortie running sans avoir à l'ouvrir (#96).
-  await expect(carte.getByText("Muscu")).toBeVisible();
+  await expect(carte.getByText("Muscu", { exact: true })).toBeVisible();
   await carte.getByRole("button", { name: "C'est fait" }).click();
 
   await pageAthlete.getByRole("radio", { name: "6", exact: true }).click();
@@ -75,7 +75,7 @@ test("le coach construit une séance de muscu, l'athlète saisit ce qu'il a fait
   await pageAthlete.getByRole("link", { name: "Historique" }).click();
   // Distinguable d'une sortie running sans avoir à l'ouvrir, ici aussi (#96).
   await expect(
-    pageAthlete.getByRole("link", { name: new RegExp(titre) }).getByText("Muscu")
+    pageAthlete.getByRole("link", { name: new RegExp(titre) }).getByText("Muscu", { exact: true })
   ).toBeVisible();
   // Clique le lien lui-même plutôt qu'un <p> imbriqué : celui du titre porte
   // `truncate`, contrairement au texte cliqué avec succès ailleurs dans la
