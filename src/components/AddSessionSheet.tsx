@@ -69,7 +69,7 @@ export function AddSessionSheet({ sessions }: { sessions: TrainingSession[] }) {
           className="rounded-xl border border-line bg-card px-3 py-3 text-left transition-colors hover:border-pine/40"
         >
           <span className="block font-semibold">Fichier de montre</span>
-          <span className="block text-[12px] text-ink-soft">GPX ou TCX</span>
+          <span className="block text-[12px] text-ink-soft">GPX, TCX ou FIT</span>
         </button>
       </div>
       <button

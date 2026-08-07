@@ -1,4 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  Encoder,
+  Profile,
+  type Encodable,
+  type FileIdMesg,
+  type SessionMesg,
+} from "@garmin/fitsdk";
 
 /**
  * Parcours d'import d'un fichier de montre, de bout en bout.
@@ -49,13 +56,13 @@ async function seConnecter(page: Page, email: string) {
   await expect(page).toHaveURL(/\/$|\/\?/);
 }
 
-async function deposer(page: Page, contenu: string, nom = "seance-test.gpx") {
+async function deposer(page: Page, contenu: string | Buffer, nom = "seance-test.gpx") {
   await page.getByRole("button", { name: "Ajouter une séance" }).click();
   await page.getByText("Fichier de montre").click();
   await page.getByLabel(/Fichier exporté/).setInputFiles({
     name: nom,
     mimeType: "application/gpx+xml",
-    buffer: Buffer.from(contenu, "utf8"),
+    buffer: typeof contenu === "string" ? Buffer.from(contenu, "utf8") : contenu,
   });
 }
 
@@ -133,6 +140,53 @@ test("un fichier TCX est importable de bout en bout", async ({ page }) => {
 
   await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
   await page.getByRole("radio", { name: "5", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+});
+
+/**
+ * FIT minimal, construit avec le même SDK que celui qui le lit
+ * (@garmin/fitsdk) : binaire et non du XML, il n'y a pas d'autre façon d'en
+ * fabriquer un valide pour ce test que d'utiliser son propre encodeur.
+ */
+function fitDuJour(graine = Math.floor(Math.random() * 65_000), decalageMinutes = 0) {
+  const jour = new Date();
+  const debut = new Date(
+    Date.UTC(jour.getFullYear(), jour.getMonth(), jour.getDate(), 12, decalageMinutes)
+  );
+
+  const encoder = new Encoder();
+  encoder.writeMesg({
+    mesgNum: Profile.MesgNum.FILE_ID,
+    type: "activity",
+    manufacturer: "garmin",
+    // Un champ sans effet sur la lecture, mais qui rend l'empreinte du
+    // fichier unique à chaque exécution — comme la graine des GPX/TCX.
+    product: graine,
+    timeCreated: debut,
+  } as Encodable<FileIdMesg>);
+  encoder.writeMesg({
+    mesgNum: Profile.MesgNum.SESSION,
+    startTime: debut,
+    totalElapsedTime: 1500.0,
+    totalTimerTime: 1500.0,
+    totalDistance: 5000.0,
+    avgHeartRate: 150,
+  } as Encodable<SessionMesg>);
+  return Buffer.from(encoder.close());
+}
+
+test("un fichier FIT est importable de bout en bout", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+  await deposer(page, fitDuJour(undefined, 47), "montre.fit");
+
+  await expect(page.getByText("25 min · 5,0 km · 150 bpm")).toBeVisible();
+
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByRole("radio", { name: "7", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
 
   await expect(

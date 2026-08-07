@@ -56,7 +56,7 @@ export function ImportActivityForm({
     setSeance("");
     if (!fichier) return;
 
-    const contenu = await fichier.text();
+    const contenu = await fichier.arrayBuffer();
     const lecture = lireFichierActivite(contenu, fichier.name);
     if (!lecture.ok) {
       setErreurLecture(lecture.erreur);
@@ -89,7 +89,7 @@ export function ImportActivityForm({
 
       <div className="mt-3">
         <label className={labelClass} htmlFor="import-fichier">
-          Fichier exporté de ta montre (GPX ou TCX)
+          Fichier exporté de ta montre (GPX, TCX ou FIT)
         </label>
         <input
           ref={champFichier}
