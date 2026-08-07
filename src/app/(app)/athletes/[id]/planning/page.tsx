@@ -6,6 +6,7 @@ import { WeekPlanner } from "@/components/WeekPlanner";
 import { IconPlus } from "@/components/Icons";
 import { btnPrimary } from "@/lib/styles";
 import { addDays, toISODate } from "@/lib/dates";
+import { chargerDetailsSeances } from "@/lib/session-details";
 import type { Profile, TrainingSession } from "@/lib/types";
 
 export default async function AthletePlanningPage({
@@ -35,6 +36,10 @@ export default async function AthletePlanningPage({
     .order("date");
   const sessions = (data ?? []) as TrainingSession[];
   const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
+  const details = await chargerDetailsSeances(
+    supabase,
+    sessions.map((s) => s.id)
+  );
 
   return (
     <div className="px-5 space-y-3">
@@ -48,7 +53,7 @@ export default async function AthletePlanningPage({
         </Link>
       </div>
       <Card className="p-3">
-        <WeekPlanner athleteId={id} sessions={sessions} />
+        <WeekPlanner athleteId={id} sessions={sessions} {...details} />
       </Card>
       {upcoming.length === 0 && (
         <p className="text-center text-[13px] text-ink-soft">

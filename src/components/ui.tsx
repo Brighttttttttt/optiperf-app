@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { IconChevronLeft } from "./Icons";
 import { rpeBand, RPE_CHIP, STATUS_CHIP } from "@/lib/rpe";
 import { STATUS_LABELS, type FitnessStatus } from "@/lib/metrics";
+import { PLANNING_STATE_LABEL, type PlanningState } from "@/lib/planning";
 
 /** Entête de page : surtitre condensé + grand titre, retour optionnel. */
 export function PageHeader({
@@ -110,6 +111,30 @@ export function StatusBadge({ status }: { status: FitnessStatus }) {
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-[13px] font-semibold ${STATUS_CHIP[status]}`}
     >
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+/**
+ * État d'une séance dans un planning (fait / manquée / à rattraper / à venir).
+ *
+ * Quatre teintes distinctes plutôt que la rampe RPE, qui porte un autre sens
+ * (l'effort ressenti) : ici c'est l'avancement qui se lit. « À rattraper »
+ * emprunte l'accent d'alerte, seul des quatre à appeler une action.
+ */
+const PLANNING_STATE_CHIP: Record<PlanningState, string> = {
+  fait: "bg-pine-soft text-pine",
+  manquee: "bg-rpe-max-soft text-rpe-max",
+  "a-rattraper": "bg-rpe-high-soft text-rpe-high",
+  "a-venir": "bg-surface text-ink-soft",
+};
+
+export function PlanningStateBadge({ state }: { state: PlanningState }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[12px] font-semibold ${PLANNING_STATE_CHIP[state]}`}
+    >
+      {PLANNING_STATE_LABEL[state]}
     </span>
   );
 }

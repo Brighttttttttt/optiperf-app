@@ -1,4 +1,5 @@
 import { addDays, toISODate } from "./dates";
+import type { SessionStatus } from "./types";
 
 /** Nombre maximal de séances créées en une seule fois (athlètes × dates). */
 export const MAX_BATCH_SESSIONS = 120;
@@ -84,6 +85,33 @@ export function weekLabel(monday: Date): string {
   });
   return `Semaine du ${start} au ${end}`;
 }
+
+/**
+ * État d'une séance tel qu'il se lit dans un planning.
+ *
+ * `planned` en porte deux, que le statut SQL ne distingue pas : une séance
+ * encore à faire et une séance dont le jour est passé sans compte rendu. La
+ * seconde appelle une action de l'athlète, pas la première — d'où le même
+ * vocabulaire que l'accueil (« À rattraper »), plutôt qu'un « À venir » qui
+ * mentirait sur une séance d'hier.
+ */
+export type PlanningState = "fait" | "manquee" | "a-rattraper" | "a-venir";
+
+export function planningState(
+  session: { status: SessionStatus; date: string },
+  now = new Date()
+): PlanningState {
+  if (session.status === "completed") return "fait";
+  if (session.status === "missed") return "manquee";
+  return session.date < toISODate(now) ? "a-rattraper" : "a-venir";
+}
+
+export const PLANNING_STATE_LABEL: Record<PlanningState, string> = {
+  fait: "Fait",
+  manquee: "Manquée",
+  "a-rattraper": "À rattraper",
+  "a-venir": "À venir",
+};
 
 /** "3 séances" / "1 séance" — accord automatique. */
 export function pluralize(count: number, singular: string, plural = `${singular}s`) {
