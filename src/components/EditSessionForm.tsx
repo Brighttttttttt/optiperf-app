@@ -1,19 +1,29 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateSession } from "@/app/(app)/actions";
 import { SubmitButton } from "./SubmitButton";
 import { WorkoutBlocksEditor } from "./WorkoutBlocksEditor";
+import { ExercisesEditor } from "./ExercisesEditor";
 import { inputClass, labelClass } from "@/lib/styles";
 import type { BlockDraft } from "@/lib/blocks";
-import { LIMITS, SESSION_TYPES, type TrainingSession, type WorkoutBlock } from "@/lib/types";
+import type { ExerciseDraft } from "@/lib/exercises";
+import {
+  LIMITS,
+  SESSION_TYPES,
+  type Exercise,
+  type TrainingSession,
+  type WorkoutBlock,
+} from "@/lib/types";
 
 export function EditSessionForm({
   session,
   blocks = [],
+  exercises = [],
 }: {
   session: TrainingSession;
   blocks?: WorkoutBlock[];
+  exercises?: Exercise[];
 }) {
   const initialBlocks: BlockDraft[] = blocks.map((b) => ({
     block_type: b.block_type as BlockDraft["block_type"],
@@ -23,6 +33,16 @@ export function EditSessionForm({
     repetitions: b.repetitions,
   }));
   const [state, action] = useActionState(updateSession, null);
+  const [type, setType] = useState(session.type);
+  const initialExercises: ExerciseDraft[] = exercises
+    .sort((a, b) => a.position - b.position)
+    .map((e) => ({
+      name: e.name,
+      sets: e.sets,
+      reps: e.reps,
+      charge_kg: e.charge_kg,
+      rest_sec: e.rest_sec,
+    }));
 
   return (
     <form action={action} className="space-y-3.5">
@@ -70,7 +90,8 @@ export function EditSessionForm({
           <select
             id="edit-type"
             name="type"
-            defaultValue={session.type}
+            value={type}
+            onChange={(e) => setType(e.target.value)}
             className={`${inputClass} min-h-[52px]`}
           >
             {SESSION_TYPES.map((t) => (
@@ -111,7 +132,11 @@ export function EditSessionForm({
         />
       </div>
 
-      <WorkoutBlocksEditor initial={initialBlocks} />
+      {type === "renfo" ? (
+        <ExercisesEditor initial={initialExercises} />
+      ) : (
+        <WorkoutBlocksEditor initial={initialBlocks} />
+      )}
 
       {state?.error && (
         <p className="text-sm font-medium text-rpe-max">{state.error}</p>

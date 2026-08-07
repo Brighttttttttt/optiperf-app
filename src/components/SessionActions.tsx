@@ -4,17 +4,21 @@ import { useActionState, useState } from "react";
 import { completeSession, missSession } from "@/app/(app)/actions";
 import { RpeScale } from "./RpeScale";
 import { SubmitButton } from "./SubmitButton";
+import { ExerciseLogsEditor } from "./ExerciseLogsEditor";
 import { btnGhost, btnPrimary, inputClass, labelClass } from "@/lib/styles";
-import { LIMITS } from "@/lib/types";
+import { LIMITS, type Exercise } from "@/lib/types";
 
 /** Boutons « C'est fait » / « Manquée » d'une séance planifiée,
- *  avec le formulaire de saisie du réalisé (RPE, durée, commentaire). */
+ *  avec le formulaire de saisie du réalisé (RPE, durée, commentaire, et
+ *  exercice par exercice pour une séance de musculation). */
 export function SessionActions({
   sessionId,
   defaultDuration,
+  exercises = [],
 }: {
   sessionId: string;
   defaultDuration: number | null;
+  exercises?: Exercise[];
 }) {
   const [open, setOpen] = useState(false);
   const [rpe, setRpe] = useState<number | null>(null);
@@ -74,6 +78,7 @@ export function SessionActions({
           className={inputClass}
         />
       </div>
+      {exercises.length > 0 && <ExerciseLogsEditor exercises={exercises} />}
       <div>
         <label className={labelClass} htmlFor={`comment-${sessionId}`}>
           Analyse de séance

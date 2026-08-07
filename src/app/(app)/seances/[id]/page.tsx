@@ -6,6 +6,7 @@ import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
 import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
 import { ZoneBar } from "@/components/ZoneBar";
+import { ExercisesList } from "@/components/ExercisesList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import { repartitionZones } from "@/lib/zones";
@@ -14,6 +15,8 @@ import {
   sessionTypeLabel,
   type Activity,
   type ActivityTrace,
+  type Exercise,
+  type ExerciseLog,
   type Profile,
   type TrainingSession,
   type WorkoutBlock,
@@ -53,6 +56,13 @@ export default async function SessionPage({
     .order("position");
   const blocks = (blocksData ?? []) as WorkoutBlock[];
 
+  const { data: exercisesData } = await supabase
+    .from("exercises")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("position");
+  const exercises = (exercisesData ?? []) as Exercise[];
+
   // Une séance déjà rapportée appartient au compte rendu de l'athlète : le
   // coach n'en réécrit pas la prescription après coup, il en garde la trace.
   if (session.status !== "planned") {
@@ -74,6 +84,15 @@ export default async function SessionPage({
           .maybeSingle<ActivityTrace>()
       : { data: null };
 
+    const { data: logsData } =
+      exercises.length > 0
+        ? await supabase
+            .from("exercise_logs")
+            .select("*")
+            .in("exercise_id", exercises.map((e) => e.id))
+        : { data: null };
+    const logs = (logsData ?? []) as ExerciseLog[];
+
     return (
       <div>
         <PageHeader
@@ -88,7 +107,10 @@ export default async function SessionPage({
             </span>
           )}
 
-          {(session.description || session.duration_planned_min || blocks.length > 0) && (
+          {(session.description ||
+            session.duration_planned_min ||
+            blocks.length > 0 ||
+            exercises.length > 0) && (
             <Card className="p-4">
               <p className="text-[13px] font-semibold text-ink-soft">Prévu</p>
               <p className="mt-1 text-[15px]">
@@ -103,6 +125,7 @@ export default async function SessionPage({
                 </p>
               )}
               <WorkoutBlocksList blocks={blocks} />
+              <ExercisesList exercises={exercises} logs={logs} />
             </Card>
           )}
 
@@ -168,7 +191,7 @@ export default async function SessionPage({
         backHref={backHref}
       />
       <div className="px-5">
-        <EditSessionForm session={session} blocks={blocks} />
+        <EditSessionForm session={session} blocks={blocks} exercises={exercises} />
       </div>
     </div>
   );
