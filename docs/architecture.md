@@ -88,7 +88,7 @@ flowchart LR
 6. **Vercel déploie la production**, puis un second workflow va vérifier le site
    réellement en ligne.
 
-## Les tests : cinq étages, cinq métiers différents
+## Les tests : six étages, six métiers différents
 
 Chaque étage voit ce que le précédent ne peut pas voir. C'est pour ça qu'ils
 existent tous.
@@ -98,17 +98,20 @@ existent tous.
 | **Unitaires** | `npm test` | Vérifie les fonctions de calcul isolément (charge, dates, semaines, RPE). Instantané. | Une formule fausse, un décalage de fuseau. | Ne sait rien de l'app réelle. |
 | **Fumée** | `npm run test:e2e` | Un vrai navigateur, **sans base**. Redirections, en-têtes, pages publiques, installation sur l'écran d'accueil. | Une route qui ne protège plus, une CSP cassée. | Ne voit aucune page connectée. |
 | **Connectés** | `npm run test:e2e:auth` | Un vrai navigateur **avec de vrais comptes**, contre une vraie base. Les seuls qui vérifient qu'une page connectée **affiche son contenu**. | Une page vide, une donnée manquante, un athlète qui verrait les données d'un autre. | Trop rapide en local pour reproduire certains défauts d'affichage. |
+| **Largeur bureau** | `npm run test:e2e:bureau` | Les mêmes comptes et la même base que les connectés, mais en 1440 × 900. | Une mise en page qui casse à la souris : navigation, grilles, débordement horizontal. | Ne teste que la largeur, pas la logique. |
 | **Fumée production** | `npm run smoke` | Interroge le **site en ligne** sans navigateur : routage du CDN, en-têtes, réponses attendues. | Un problème apparu seulement une fois déployé. | Regarde les réponses, pas l'écran. |
 | **Affichage production** | `npm run test:prod` | Un vrai navigateur contre le **site en ligne**, connecté au compte de démo. | Le cas où une page **répond correctement mais n'affiche rien** — le mode de panne de l'incident #44. | Ne tourne qu'après déploiement. |
 
-**Quand ça tourne tout seul :** les trois premiers étages à chaque pull request
+**Quand ça tourne tout seul :** les quatre premiers étages à chaque pull request
 (GitHub Actions) ; les deux derniers automatiquement après chaque déploiement
 de production.
 
-**Pourquoi cinq et pas trois** : un incident a traversé une CI entièrement verte
+**Pourquoi six et pas trois** : un incident a traversé une CI entièrement verte
 parce qu'aucun test n'ouvrait une page **avec une session**, et parce qu'aucun
 ne regardait le site **réellement déployé**. Les étages « connectés » et
-« affichage production » sont nés de là.
+« affichage production » sont nés de là. Le sixième, « largeur bureau », est né
+d'un constat plus simple : toute la suite tournait en viewport de téléphone,
+donc rien n'aurait signalé une régression sur l'écran où le coach planifie.
 
 ## Les deux automatismes de la CI
 

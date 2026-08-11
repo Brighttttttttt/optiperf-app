@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --project=fumee",
     "test:e2e:auth": "playwright test --project=authentifie",
+    "test:e2e:bureau": "playwright test --project=bureau",
     "test:prod": "playwright test --project=production",
     "smoke": "node scripts/smoke-prod.mjs",
     "seed": "node scripts/seed.mjs"

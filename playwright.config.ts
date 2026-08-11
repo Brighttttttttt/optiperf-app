@@ -40,6 +40,15 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
     {
+      // Les mêmes parcours connectés, en largeur d'ordinateur. Tout le reste
+      // de la suite tourne en Pixel 7 : sans ce projet, rien ne garantirait
+      // qu'une vue reprise pour le grand écran ne se casse pas plus tard —
+      // et le coach planifie souvent assis devant un clavier.
+      name: "bureau",
+      testDir: "./e2e-bureau",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+    {
       // Contrôle après déploiement, dans un vrai navigateur, contre le site
       // en ligne. C'est le seul dispositif capable de voir qu'une page
       // répond correctement tout en n'affichant rien — le mode de panne de
