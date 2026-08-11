@@ -108,7 +108,7 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 
 ## Fonctionnement
 
-- **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique), messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
+- **Coach** : dashboard avec une carte par athlète (volume 7 j, adhérence, RPE moyen, charge, état de forme), fiche athlète (objectifs, planning, historique, **note libre visible du coach seul**), messagerie, notifications. Les athlètes rejoignent le groupe avec le **code coach** (visible dans Réglages).
 - **Installable** : depuis Safari ou Chrome, « Ajouter à l'écran d'accueil » pose l'icône Optiperf sur le téléphone ; l'app s'ouvre alors en plein écran, sans barre d'adresse.
 - **Planification groupée** : un écran unique où le coach décrit la séance une fois, coche plusieurs athlètes et plusieurs dates, et crée tout en un envoi. Les séances récurrentes se gardent en **modèles** réutilisables ; une séance déjà planifiée se **duplique** en un tap.
 - **Athlète** : séances à venir, saisie du réalisé avec la rampe RPE 1–10, séances libres, historique, messagerie avec son coach.

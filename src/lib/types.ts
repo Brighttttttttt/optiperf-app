@@ -140,6 +140,19 @@ export type Objective = {
   created_at: string;
 };
 
+/**
+ * Note libre du coach sur un athlète (migration 015). Invisible pour
+ * l'athlète : la RLS ne lui écrit aucune politique.
+ */
+export type CoachNote = {
+  id: string;
+  coach_id: string;
+  athlete_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Message = {
   id: string;
   sender_id: string;

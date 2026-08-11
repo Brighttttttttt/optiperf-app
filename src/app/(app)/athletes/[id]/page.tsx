@@ -5,6 +5,7 @@ import { ObjectiveForm } from "@/components/ObjectiveForm";
 import { RemoveAthleteButton } from "@/components/RemoveAthleteButton";
 import { ZoneBar } from "@/components/ZoneBar";
 import { RecordsForm } from "@/components/RecordsForm";
+import { CoachNoteForm } from "@/components/CoachNoteForm";
 import { deleteObjective } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
@@ -12,6 +13,7 @@ import { additionnerZones, repartitionZones, type RepartitionZones } from "@/lib
 import type {
   Activity,
   ActivityTrace,
+  CoachNote,
   Objective,
   PersonalRecord,
   Profile,
@@ -36,7 +38,7 @@ export default async function AthleteFichePage({
     .maybeSingle<Profile>();
   if (!athlete) redirect("/");
 
-  const [sessionsRes, objectivesRes, recordsRes] = await Promise.all([
+  const [sessionsRes, objectivesRes, recordsRes, noteRes] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
@@ -50,11 +52,19 @@ export default async function AthleteFichePage({
       .eq("athlete_id", id)
       .order("target_date", { ascending: true }),
     supabase.from("personal_records").select("*").eq("athlete_id", id),
+    // La RLS filtre sur le coach connecté : inutile de le préciser ici, et
+    // le préciser laisserait croire que c'est ce qui protège la note.
+    supabase
+      .from("coach_notes")
+      .select("content")
+      .eq("athlete_id", id)
+      .maybeSingle<Pick<CoachNote, "content">>(),
   ]);
 
   const sessions = (sessionsRes.data ?? []) as TrainingSession[];
   const objectives = (objectivesRes.data ?? []) as Objective[];
   const records = (recordsRes.data ?? []) as PersonalRecord[];
+  const note = noteRes.data?.content ?? null;
   const metrics = computeMetrics(sessions, now);
 
   // Moyenne des zones sur les 10 dernières séances rapportées, pas sur la
@@ -146,6 +156,18 @@ export default async function AthleteFichePage({
         </div>
         <div className="mt-2">
           <RecordsForm athleteId={athlete.id} records={records} />
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="font-semibold">Mes notes</p>
+          {/* Dit sur la fiche elle-même, pas seulement dans le formulaire :
+              c'est ce qui décide de ce qu'on ose y écrire. */}
+          <p className="text-[13px] text-ink-soft">Visible par toi seul</p>
+        </div>
+        <div className="mt-2">
+          <CoachNoteForm athleteId={athlete.id} note={note} />
         </div>
       </Card>
 
