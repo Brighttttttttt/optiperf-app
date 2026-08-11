@@ -128,3 +128,12 @@ export function IconCalendar({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Poignée : ce qui se saisit pour déplacer une séance dans le planning. */
+export function IconGrip({ className }: IconProps) {
+  return (
+    <svg {...base(className)} strokeWidth={2.4}>
+      <path d="M9 7h.01M9 12h.01M9 17h.01M15 7h.01M15 12h.01M15 17h.01" />
+    </svg>
+  );
+}

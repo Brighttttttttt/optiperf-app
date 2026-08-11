@@ -105,3 +105,29 @@ test("aucune page ne déborde horizontalement", async ({ page }) => {
     expect(largeur, `${chemin} déborde`).toBeLessThanOrEqual(fenetre.width);
   }
 });
+
+test("la barre de navigation ne recouvre pas le contenu", async ({ page }) => {
+  // Régression : la barre déclarait deux positions au même palier, et son
+  // décalage horizontal de téléphone n'était neutralisé nulle part au-delà
+  // de `md`. Le positionnement collant l'emportait, et sa contrainte
+  // horizontale déportait la colonne au milieu du contenu — invisible,
+  // puisqu'elle y est transparente — où elle absorbait les clics sur une
+  // bande pleine hauteur.
+  //
+  // (Les noms de classes sont volontairement absents de ce commentaire :
+  // Tailwind scanne le texte brut et émettrait la règle morte.)
+  //
+  // Aucun test ne pouvait le voir : les autres mesurent des rectangles ou
+  // cliquent dans la barre elle-même. Il a fallu cliquer *à travers* elle.
+  await seConnecter(page, "coach@example.com");
+  await page.goto("/planifier");
+
+  const dates = page.locator('button[aria-label^="20"]');
+  const barre = (await nav(page).boundingBox())!;
+  const premiere = (await dates.first().boundingBox())!;
+  expect(barre.x + barre.width).toBeLessThanOrEqual(premiere.x);
+
+  // Et la cible reçoit bien le clic, plutôt qu'un élément posé par-dessus.
+  await dates.first().click();
+  await expect(dates.first()).toHaveAttribute("aria-pressed", "true");
+});
