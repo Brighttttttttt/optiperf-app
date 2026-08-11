@@ -126,6 +126,34 @@ Le contenu change, la charpente non.
 
 ---
 
+## Régénérer le jeu de démonstration en ligne
+
+Deux scripts existent et **ne servent pas à la même chose**. Les confondre a déjà
+coûté deux contrôles de production au rouge (#117).
+
+| | `npm run seed` | `npm run demo` |
+|---|---|---|
+| Pour quoi | Faire tourner `e2e-auth` | Parcourir l'app comme un utilisateur |
+| Contenu | 1 coach + 3 athlètes | 1 coach + 5 athlètes |
+| Noms | **Lus en dur dans les tests** — les changer les casse | Libres, ils changent à chaque régénération |
+| Cible | La base de `.env.local` (en CI, une base neuve) | La base de `.env.local` |
+
+Pour repeupler la démo en ligne :
+
+1. Vérifie que `.env.local` pointe la base **de production** et contient
+   `SUPABASE_SECRET_KEY`. Le script affiche sa cible avant d'écrire — lis-la.
+2. `npm run demo`.
+3. Rejoue les contrôles : `npm run smoke` puis `npm run test:prod`.
+
+Le script est relançable : il remplace les données des comptes de démo et ne
+touche à aucun autre compte.
+
+**Ne nomme jamais un athlète de démo dans un test.** Le jeu en ligne change
+quand on le régénère, et un contrôle qui cherche un nom passe au rouge sans
+qu'aucune page ne soit cassée. C'est arrivé deux fois.
+
+---
+
 ## Débloquer une PR dont la CI ne démarre pas
 
 Symptôme : la PR est ouverte, aucun check n'apparaît, l'onglet Actions reste
