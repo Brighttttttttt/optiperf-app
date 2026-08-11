@@ -40,8 +40,13 @@ export default async function SessionPage({
   if (!session) redirect("/");
 
   const profile = await getSessionProfile();
+  // À qui appartient cette séance, plutôt qu'à quel rôle on appartient : un
+  // coach qui s'entraîne ouvre les siennes depuis son historique, et celles
+  // de ses athlètes depuis leur fiche. Le rôle ne le disait pas (#62).
   const backHref =
-    profile?.role === "coach" ? `/athletes/${session.athlete_id}` : "/history";
+    profile?.id === session.athlete_id
+      ? "/history"
+      : `/athletes/${session.athlete_id}`;
 
   const { data: athlete } = await supabase
     .from("profiles")

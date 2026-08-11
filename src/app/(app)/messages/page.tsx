@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
+import { getViewMode } from "@/lib/view-mode";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatTimestamp } from "@/lib/dates";
 import { initials } from "@/lib/initials";
@@ -12,10 +13,14 @@ export default async function MessagesPage() {
   const user = await getSessionUser();
   const profile = await getSessionProfile();
   if (!user || !profile) redirect("/login");
+  // Sert au seul texte de l'état vide : un coach qui s'entraîne et n'a pas
+  // encore de coach doit lire l'invitation qui le concerne.
+  const mode = await getViewMode();
 
   // La sécurité RLS ne laisse voir que les profils liés : tout profil autre
   // que le sien est donc un interlocuteur — ses athlètes s'il est coach, son
-  // coach s'il est athlète. Une seule requête, en parallèle des messages.
+  // coach s'il est athlète. Un coach qui s'entraîne y trouve les deux, sans
+  // rien à filtrer ici. Une seule requête, en parallèle des messages.
   const [partnersRes, msgRes] = await Promise.all([
     supabase
       .from("profiles")
@@ -62,12 +67,12 @@ export default async function MessagesPage() {
           <Card>
             <EmptyState
               title={
-                profile.role === "coach"
+                mode === "coach"
                   ? "Aucun athlète dans ton groupe"
                   : "Tu n'es pas encore lié à un coach"
               }
               hint={
-                profile.role === "coach"
+                mode === "coach"
                   ? "Partage ton code coach (Réglages) pour ouvrir tes premières discussions."
                   : "Ajoute le code de ton coach dans Réglages pour discuter avec lui."
               }

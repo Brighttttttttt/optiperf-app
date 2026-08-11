@@ -13,7 +13,7 @@ import {
   IconPulse,
   IconSettings,
 } from "./Icons";
-import type { Role } from "@/lib/types";
+import type { ViewMode } from "@/lib/view-mode";
 
 type Tab = {
   href: string;
@@ -22,7 +22,12 @@ type Tab = {
   badge?: "messages" | "notifications";
 };
 
-const TABS: Record<Role, Tab[]> = {
+/**
+ * Les onglets suivent le **mode d'affichage**, pas le rôle : un coach qui
+ * bascule sur « je m'entraîne » retrouve la navigation d'un athlète, sur ses
+ * propres données (issue #62).
+ */
+const TABS: Record<ViewMode, Tab[]> = {
   coach: [
     { href: "/", label: "Athlètes", icon: IconAthletes },
     { href: "/messages", label: "Messages", icon: IconChat, badge: "messages" },
@@ -71,12 +76,12 @@ function TraitDeNavigation() {
 }
 
 export function BottomNav({
-  role,
+  mode,
   userId,
   unreadMessages,
   unreadNotifications,
 }: {
-  role: Role;
+  mode: ViewMode;
   userId: string;
   unreadMessages: number;
   unreadNotifications: number;
@@ -116,7 +121,7 @@ export function BottomNav({
   }, [userId, router]);
 
   const counts = { messages: unreadMessages, notifications: unreadNotifications };
-  const tabs = TABS[role];
+  const tabs = TABS[mode];
 
   return (
     <nav

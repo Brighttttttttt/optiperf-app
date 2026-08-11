@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
@@ -10,6 +11,7 @@ import { validerTrace } from "@/lib/activites";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
+import { VIEW_MODE_COOKIE, VIEW_MODE_MAX_AGE } from "@/lib/view-mode";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -715,4 +717,39 @@ export async function markAllNotificationsRead() {
     .eq("recipient_id", user.id)
     .is("read_at", null);
   revalidatePath("/", "layout");
+}
+
+// ---------- Vue (coach qui s'entraîne aussi) ----------
+
+/**
+ * Bascule entre encadrer et s'entraîner. Le mode n'est qu'une préférence
+ * d'affichage posée en cookie : il n'ouvre aucun droit, et `resolveViewMode`
+ * l'ignore pour un compte qui n'est pas coach.
+ */
+export async function setViewMode(formData: FormData) {
+  const { user } = await requireUser();
+  const demande = String(formData.get("mode") ?? "");
+  if (demande !== "coach" && demande !== "athlete") return;
+
+  // Un athlète n'a rien à basculer : ne rien poser plutôt que d'écrire un
+  // cookie que la lecture ignorerait de toute façon.
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string }>();
+  if (profile?.role !== "coach") return;
+
+  const store = await cookies();
+  store.set(VIEW_MODE_COOKIE, demande, {
+    maxAge: VIEW_MODE_MAX_AGE,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+
+  revalidatePath("/", "layout");
+  redirect("/");
 }
