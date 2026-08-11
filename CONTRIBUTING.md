@@ -1,8 +1,14 @@
 # Conventions de travail
 
-Tout est en **français**, y compris les issues, les branches, les commits et les
-pull requests. Vue d'ensemble du projet :
-[docs/architecture.md](docs/architecture.md).
+**L'app, les issues et le code sont en français ; les commits et les pull
+requests sont en anglais**, au format [Conventional
+Commits](https://www.conventionalcommits.org/fr/v1.0.0/). Vue d'ensemble du
+projet : [docs/architecture.md](docs/architecture.md).
+
+La frontière est nette et datée : tout ce qui précède
+[#109](https://github.com/Brighttttttttt/optiperf-app/pull/109) est en français
+sans préfixe, tout ce qui suit est en anglais préfixé. Un outil de journal des
+changements installé plus tard devra partir de là.
 
 ## Le principe
 
@@ -29,27 +35,51 @@ protection GitHub le refuse.
 ## Commits
 
 **Ce qui compte, c'est le titre et le corps de la PR.** Les commits sur la
-branche peuvent rester bruts (`wip`, `corrige le test`) — ils disparaissent au
-squash.
+branche peuvent rester bruts (`wip`, `fix test`) — ils disparaissent au squash.
 
 Si tu veux quand même les soigner, même format que les titres de PR ci-dessous.
+C'est le **titre de la PR** qui doit être conforme, puisque c'est lui qui
+atterrit sur `master`.
 
 ## Titres (PR et commit final)
 
-Un verbe à l'**impératif** ou un **groupe nominal**, ce que la modification fait
-pour l'utilisateur ou pour le projet. Pas de préfixe technique (`feat:`,
-`fix:`), pas de point final, 70 caractères maximum.
+Format : `type(portée): résumé à l'impératif`, **en anglais**, sans point final,
+70 caractères maximum. La portée est facultative.
 
-✅ `Rappel hebdomadaire de planification`
-✅ `Vérifie les jetons localement au lieu d'interroger Supabase`
-✅ `Urgence : retire le squelette de chargement qui bloquait l'affichage`
-❌ `feat: add reminder`
-❌ `Fix bug`
-❌ `Modifications diverses`
+✅ `feat(planning): add a weekly reminder for unplanned athletes`
+✅ `fix(auth): keep cookies on redirect responses`
+✅ `docs: record why loading.tsx stays out of this app`
+❌ `feat: Add reminder.` (majuscule, point final)
+❌ `fix stuff`
+❌ `Rappel hebdomadaire de planification` (ancienne convention)
 
-Préfixe `Urgence :` pour un correctif qui rétablit le service.
+| Type | Pour quoi |
+|---|---|
+| `feat` | Une fonctionnalité que le coach ou l'athlète peut voir |
+| `fix` | Un défaut corrigé |
+| `perf` | Même comportement, plus rapide — avec la mesure dans la description |
+| `refactor` | Ni fonctionnalité ni correctif : la forme change, pas le résultat |
+| `test` | Couverture ajoutée ou réparée, sans toucher au code testé |
+| `docs` | `README`, `CLAUDE.md`, `docs/`, commentaires |
+| `ci` | Workflows GitHub, Playwright, Dependabot |
+| `chore` | Dépendances, outillage, ménage |
+| `revert` | Annulation d'un commit précédent |
+
+Portées usuelles, telles qu'un lecteur extérieur les comprendrait :
+`auth`, `planning`, `sessions`, `athletes`, `activities`, `messages`,
+`nav`, `settings`, `db`.
+
+**Pas de `BREAKING CHANGE`, pas de versionnage sémantique.** Il n'existe aucun
+dépendant à prévenir : Optiperf est déployé en continu, il n'y a que la
+production. Ce qui mérite d'être signalé, c'est une **migration à poser à la
+main** — et ça se dit en fin de description, pas dans le titre.
+
+Pour un correctif qui rétablit le service, `fix` suffit : l'urgence se lit dans
+la description et dans l'heure du merge, pas dans un préfixe de plus.
 
 ## Description de PR
+
+Le corps de la PR devient le corps du commit : **en anglais**, comme le titre.
 
 La règle : **le quoi se lit dans le diff, la description explique le pourquoi.**
 
