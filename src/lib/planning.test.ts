@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  appliquerDeplacement,
   batchSummary,
+  peutDeplacer,
   planningCalendar,
   planningState,
   pluralize,
@@ -134,5 +136,46 @@ describe("planningState", () => {
     // Une séance du jour se fait encore le soir : la signaler en retard dès
     // le matin serait faux et culpabilisant.
     expect(planningState({ status: "planned", date: "2026-08-05" }, NOW)).toBe("a-venir");
+  });
+});
+
+describe("peutDeplacer", () => {
+  it("n'autorise que les séances encore planifiées", () => {
+    expect(peutDeplacer({ status: "planned" })).toBe(true);
+    // Déplacer une séance faite réécrirait le jour où l'athlète a couru.
+    expect(peutDeplacer({ status: "completed" })).toBe(false);
+    expect(peutDeplacer({ status: "missed" })).toBe(false);
+  });
+});
+
+describe("appliquerDeplacement", () => {
+  const seances = [
+    { id: "a", date: "2026-08-05", status: "planned" as const },
+    { id: "b", date: "2026-08-05", status: "completed" as const },
+    { id: "c", date: "2026-08-07", status: "planned" as const },
+  ];
+
+  it("ne change la date que de la séance visée", () => {
+    const apres = appliquerDeplacement(seances, "a", "2026-08-06");
+    expect(apres.map((s) => s.date)).toEqual([
+      "2026-08-06",
+      "2026-08-05",
+      "2026-08-07",
+    ]);
+  });
+
+  it("ignore une séance qui n'a pas le droit de bouger", () => {
+    // Même règle qu'à l'enregistrement : rien ne doit bouger à l'écran qui
+    // reviendrait en arrière une seconde plus tard.
+    expect(appliquerDeplacement(seances, "b", "2026-08-09")).toEqual(seances);
+  });
+
+  it("laisse la liste d'origine intacte", () => {
+    appliquerDeplacement(seances, "a", "2026-08-06");
+    expect(seances[0].date).toBe("2026-08-05");
+  });
+
+  it("ne fait rien d'un identifiant inconnu", () => {
+    expect(appliquerDeplacement(seances, "zzz", "2026-08-09")).toEqual(seances);
   });
 });

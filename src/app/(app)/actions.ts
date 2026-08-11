@@ -225,6 +225,46 @@ export async function updateSession(
   redirect(athleteId ? `/athletes/${athleteId}` : "/");
 }
 
+/**
+ * Déplace une séance d'un jour à l'autre, sans rien toucher d'autre.
+ *
+ * Appelée depuis la vue semaine par un glisser-déposer ou une flèche du
+ * clavier — d'où des arguments simples plutôt qu'un `FormData` : il n'y a pas
+ * de formulaire derrière ce geste.
+ *
+ * Le `status = 'planned'` est répété ici alors que l'affichage l'impose déjà
+ * (`peutDeplacer`) : un geste aussi facile ne doit pas dépendre de l'état de
+ * l'interface au moment du clic. La RLS dit qui peut écrire, le trigger
+ * `enforce_session_ownership` empêche un athlète de déplacer la prescription
+ * de son coach, et cette clause empêche de réécrire le jour d'un compte
+ * rendu déjà déposé.
+ */
+export async function moveSession(
+  sessionId: string,
+  date: string
+): Promise<ActionState> {
+  const { supabase } = await requireUser();
+  if (!sessionId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: "Déplacement impossible." };
+  }
+
+  const { error, count } = await supabase
+    .from("sessions")
+    .update({ date }, { count: "exact" })
+    .eq("id", sessionId)
+    .eq("status", "planned");
+
+  if (error) return { error: "Déplacement impossible. Réessaie." };
+  // Zéro ligne touchée : la séance a été faite, ou elle ne nous appartient
+  // pas. Le dire, plutôt que laisser la carte revenir en place sans raison.
+  if (!count) {
+    return { error: "Seule une séance encore à venir peut être déplacée." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function deleteTemplate(formData: FormData) {
   const { supabase } = await requireUser();
   const id = String(formData.get("template_id") ?? "");
