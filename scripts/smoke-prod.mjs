@@ -120,10 +120,17 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     const html = await page.text();
 
     check("le dashboard répond 200 une fois connecté", page.status === 200, `reçu ${page.status}`);
+    // Une carte d'athlète rendue, sans nommer personne : le jeu de démo en
+    // ligne ne vient pas de `npm run seed`, et il change quand on le
+    // régénère. Chercher « Léa Martin » ici couplait le contrôle après
+    // déploiement à des données qu'il ne maîtrise pas — il est passé au rouge
+    // le jour où la démo a été repeuplée, sans qu'aucune page ne soit cassée.
+    // Ce qui se vérifie, c'est que la page affiche ses données, pas
+    // lesquelles.
     check(
       "le dashboard affiche ses athlètes",
-      /Léa Martin|Nino Rossi|Sofia Alves/.test(html),
-      "aucun nom d'athlète dans la page"
+      /\/athletes\/[0-9a-f]{8}-[0-9a-f]{4}-/.test(html),
+      "aucun lien vers une fiche athlète dans la page"
     );
     check(
       "le dashboard n'est pas bloqué sur l'écran d'attente",
