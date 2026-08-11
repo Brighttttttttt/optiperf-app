@@ -29,9 +29,11 @@ migrations.
    - `008_notification_messages.sql` — notification à la réception d'un message
    - `009_traces_activites.sql` — trace FC/allure/altitude d'une activité importée
    - `010_zones_fc.sql` — FC max/repos de l'athlète, base du calcul des zones de fréquence cardiaque
+   - `011_blocs_seance.sql` — structure d'une séance running (échauffement, intervalle, récupération, retour au calme)
    - `012_records_vma.sql` — records personnels par distance standard et VMA de l'athlète
    - `013_musculation.sql` — exercices prescrits et compte rendu d'une séance de musculation
    - `014_coach_qui_sentraine.sql` — un coach peut aussi s'entraîner, et rejoindre un autre coach
+   - `015_note_du_coach.sql` — note libre du coach sur un athlète, que l'athlète ne voit pas
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
