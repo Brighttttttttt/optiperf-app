@@ -28,7 +28,17 @@ c'est le seul geste manuel qui reste, et rien ne vérifie qu'il a été fait.
 Une migration en `create or replace function` se rejoue sans risque, même
 plusieurs fois. Une migration qui crée une table, non.
 
-**Pour savoir où en est la production**, sans rien écrire : interroge l'API REST
+**C'est vérifié automatiquement depuis #121** : `npm run smoke` compare les
+tables déclarées dans `supabase/migrations/` à ce que la base expose, et échoue
+en nommant le fichier non appliqué. Le contrôle après déploiement passe donc au
+rouge si une migration a été oubliée — ce qui n'était pas le cas quand la
+production a tourné sept migrations en retard pendant des semaines.
+
+Attention à sa portée : seules les migrations qui **créent une table** sont
+couvertes. Une migration qui n'ajoute qu'une colonne ou remplace une fonction
+passe au travers.
+
+**Pour vérifier une table à la main**, sans rien écrire : interroge l'API REST
 sans être connecté. `anon` n'a de droit sur aucune table, donc la réponse
 distingue les deux cas qui nous intéressent.
 
