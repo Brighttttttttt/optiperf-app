@@ -13,7 +13,10 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - `npm run test:prod` — contrôle d'affichage dans un vrai navigateur contre le site en ligne, rejoué après chaque déploiement. Les tests locaux sont trop rapides pour reproduire les défauts liés au flux de rendu : ce contrôle est le seul à voir qu'une page répond correctement tout en n'affichant rien (incident #44). **Ne jamais y nommer une donnée de démo** (un athlète, un titre de séance) : le jeu en ligne ne vient pas de `npm run seed` mais d'un script propre à la production, et il change quand on le régénère. Un contrôle qui cherche « Léa Martin » passe au rouge sans qu'aucune page ne soit cassée. Ce qui se vérifie ici, c'est qu'une page **affiche ses données**, jamais lesquelles.
 - `npm run lint` et `npm run typecheck` — exigés par la CI
 - `npm run smoke` — test de fumée contre la production déployée (routage CDN, en-têtes, POST des server actions) ; rejoué automatiquement après chaque déploiement. Sa **partie connectée ne tourne qu'avec `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY`** — absents en local, présents en CI : un lancement local qui affiche 13/13 saute cinq vérifications, et un défaut peut y échapper. Pour les jouer, exporter les deux depuis `.env.local`. Même interdiction que ci-dessous : **aucun nom de donnée de démo** dans les assertions.
-- `npm run seed` — données de démo (demande `SUPABASE_SECRET_KEY` dans `.env.local`)
+- **Deux scripts de peuplement, à ne pas confondre** — c'est leur divergence silencieuse qui a mis les contrôles de production au rouge (#117) :
+  - `npm run seed` — pour les **tests**. 3 athlètes dont les noms et emails sont lus **en dur** dans `e2e-auth/*.spec.ts` : ne pas les changer sans mettre ces tests à jour. Cible la base pointée par `.env.local` (demande `SUPABASE_SECRET_KEY`) — en CI, une base locale fraîche.
+  - `npm run demo` — pour **parcourir l'app déployée soi-même** : 1 coach + 5 athlètes, mot de passe unique. C'est lui qui a peuplé la production. Relançable : il remplace les données des comptes de démo, jamais celles d'un autre compte.
+  - Conséquence : **aucun test ne doit nommer un athlète de démo**, puisque les deux jeux diffèrent et que celui en ligne change quand on le régénère.
 
 ## Architecture
 
