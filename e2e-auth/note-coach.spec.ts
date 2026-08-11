@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * Le carnet du coach sur la fiche d'un athlète (#86), côté interface.
@@ -23,6 +23,32 @@ async function seConnecter(page: Page, email: string) {
   await expect(page).toHaveURL(/\/$|\/\?/);
 }
 
+/** La carte « Mes notes » de la fiche ouverte. */
+function carnetDe(page: Page) {
+  return page.locator("div.rounded-2xl").filter({ hasText: "Mes notes" });
+}
+
+/**
+ * Ouvre la zone de saisie, en réessayant tant qu'elle n'apparaît pas.
+ *
+ * Le clic seul ne suffit pas : après une navigation entre onglets, le bouton
+ * est rendu par le serveur avant que React n'ait rehydraté le composant. Un
+ * clic qui arrive dans cette fenêtre trouve bien l'élément, l'actionnabilité
+ * Playwright est satisfaite — et il ne se passe rien, sans erreur. C'est le
+ * geste attendu qu'on attend ici, pas le clic.
+ */
+async function ouvrirSaisie(carnet: Locator) {
+  const champ = carnet.getByLabel("Note sur cet athlète");
+  await expect(async () => {
+    if (!(await champ.isVisible())) {
+      await carnet
+        .getByRole("button", { name: /Écrire une note|Modifier la note/ })
+        .click();
+    }
+    await expect(champ).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 test("le coach écrit une note, la retrouve, puis l'efface", async ({ page }) => {
   // Deux connexions et plusieurs allers-retours : au-delà du budget par défaut.
   test.setTimeout(60_000);
@@ -31,9 +57,9 @@ test("le coach écrit une note, la retrouve, puis l'efface", async ({ page }) =>
   await page.getByRole("link", { name: "Nino Rossi" }).click();
 
   const note = `Genou droit fragile ${crypto.randomUUID().slice(0, 8)}`;
-  const carnet = page.locator("div.rounded-2xl").filter({ hasText: "Mes notes" });
+  const carnet = carnetDe(page);
 
-  await carnet.getByRole("button", { name: /Écrire une note|Modifier la note/ }).click();
+  await ouvrirSaisie(carnet);
   await carnet.getByLabel("Note sur cet athlète").fill(note);
   await carnet.getByRole("button", { name: "Enregistrer" }).click();
 
@@ -41,13 +67,15 @@ test("le coach écrit une note, la retrouve, puis l'efface", async ({ page }) =>
   await expect(carnet.getByText(note)).toBeVisible();
 
   // Elle survit à la navigation entre onglets — troisième critère de #86.
+  // Aller-retour par les onglets eux-mêmes plutôt que par le bouton « retour »
+  // du navigateur : c'est le geste que décrit le critère.
   await page.getByRole("link", { name: "Planning" }).click();
-  await page.goBack();
+  await page.getByRole("link", { name: "Fiche" }).click();
   await expect(carnet.getByText(note)).toBeVisible();
 
   // Vider le champ efface la note : c'est le geste attendu, pas un second
   // bouton « Supprimer ».
-  await carnet.getByRole("button", { name: "Modifier la note" }).click();
+  await ouvrirSaisie(carnet);
   await carnet.getByLabel("Note sur cet athlète").fill("");
   await carnet.getByRole("button", { name: "Enregistrer" }).click();
   await expect(carnet.getByText("Rien de noté pour l'instant.")).toBeVisible();
@@ -63,8 +91,8 @@ test("l'athlète ne croise la note nulle part dans l'app", async ({
   await page.getByRole("link", { name: "Nino Rossi" }).click();
 
   const note = `Contrainte horaire ${crypto.randomUUID().slice(0, 8)}`;
-  const carnet = page.locator("div.rounded-2xl").filter({ hasText: "Mes notes" });
-  await carnet.getByRole("button", { name: /Écrire une note|Modifier la note/ }).click();
+  const carnet = carnetDe(page);
+  await ouvrirSaisie(carnet);
   await carnet.getByLabel("Note sur cet athlète").fill(note);
   await carnet.getByRole("button", { name: "Enregistrer" }).click();
   await expect(carnet.getByText(note)).toBeVisible();
@@ -80,7 +108,7 @@ test("l'athlète ne croise la note nulle part dans l'app", async ({
   await pageAthlete.close();
 
   // Remise en état : ce fichier partage la paire coach / Nino entre ses tests.
-  await carnet.getByRole("button", { name: "Modifier la note" }).click();
+  await ouvrirSaisie(carnet);
   await carnet.getByLabel("Note sur cet athlète").fill("");
   await carnet.getByRole("button", { name: "Enregistrer" }).click();
 });
