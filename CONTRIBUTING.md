@@ -92,7 +92,13 @@ npm run test:e2e:auth
 - [ ] les tests qui couvrent le changement,
 - [ ] `CLAUDE.md` si une règle ou un piège change,
 - [ ] `README.md` si l'installation ou l'usage change,
-- [ ] `docs/architecture.md` si la structure change.
+- [ ] `docs/architecture.md` si la structure change,
+- [ ] `docs/fonctionnalites.md` si une fonctionnalité apparaît ou disparaît,
+- [ ] `docs/parcours.md` si une page apparaît, disparaît, ou change d'accès.
+
+Les deux derniers sont le contrat passé avec quelqu'un qui arrive sur le projet :
+ils ne valent que s'ils sont exacts. Un catalogue faux coûte plus cher que pas
+de catalogue.
 
 ## Migrations SQL
 

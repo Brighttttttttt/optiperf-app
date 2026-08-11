@@ -10,6 +10,10 @@ Web app mobile-first de suivi d'entraînement entre **coach** et **athlètes** �
 
 📐 [Comment le projet est fait](docs/architecture.md) — architecture, workflow et
 rôle de chaque famille de tests, en cinq minutes.
+✨ [Ce que fait Optiperf](docs/fonctionnalites.md) — le catalogue des
+fonctionnalités livrées, et ce qui manque encore.
+🗺️ [Les pages et leurs enchaînements](docs/parcours.md) — la carte du site : qui
+accède à quoi, et par où l'on passe.
 🤝 [Conventions de travail](CONTRIBUTING.md) — branches, pull requests, issues,
 migrations.
 

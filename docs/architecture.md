@@ -4,6 +4,10 @@ Vue d'ensemble, volontairement simple. Les détails et les pièges vivent dans
 [CLAUDE.md](../CLAUDE.md) ; les conventions de travail dans
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+Deux documents de référence complètent celui-ci : le catalogue des
+fonctionnalités ([fonctionnalites.md](fonctionnalites.md)) et la carte des pages
+([parcours.md](parcours.md)).
+
 ## En une phrase
 
 Une app web mobile-first où un coach planifie des séances et où ses athlètes
