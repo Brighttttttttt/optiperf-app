@@ -91,13 +91,15 @@ npm run typecheck     # types de routes + tsc
 npm test              # tests unitaires (Vitest) — métriques, dates, planning, RPE
 npm run test:e2e      # e2e de fumée (Playwright, viewport mobile) — build requis avant
 npm run test:e2e:auth # parcours connectés — nécessite une base Supabase accessible
+npm run test:e2e:bureau # les mêmes vues en largeur d'ordinateur (1440 × 900)
 npm run smoke         # test de fumée contre la production déployée
 npm run test:prod     # contrôle d'affichage dans un vrai navigateur, contre la production
 ```
 
-Cinq familles de tests, chacune voyant ce que les autres ne peuvent pas voir — le détail de ce que chacune attrape est dans [docs/architecture.md](docs/architecture.md#les-tests--cinq-étages-cinq-métiers-différents). En résumé :
+Six familles de tests, chacune voyant ce que les autres ne peuvent pas voir — le détail de ce que chacune attrape est dans [docs/architecture.md](docs/architecture.md#les-tests--six-étages-six-métiers-différents). En résumé :
 
 - les **parcours connectés** (`e2e-auth/`) sont les seuls à vérifier qu'une page authentifiée **affiche réellement son contenu**. En CI, ils tournent contre une base Supabase démarrée par la CLI, qui applique les migrations du dépôt — ce qui les valide au passage. En local, il faut Docker et `supabase start` ;
+- les **vues en largeur bureau** (`e2e-bureau/`) sont les seules à voir une régression de mise en page à la souris — tout le reste tourne en viewport de téléphone ;
 - le **contrôle d'affichage en production** (`e2e-prod/`) est le seul dispositif capable de voir qu'une page répond correctement tout en n'affichant rien.
 
 Deux workflows : la CI à chaque pull request, et un contrôle après chaque déploiement de production (fumée + affichage dans un vrai navigateur), qui couvre ce que les tests locaux ne voient pas.

@@ -87,7 +87,10 @@ export async function CoachDashboard({ coach }: { coach: Profile }) {
       <Suspense>
         <PlanningToast />
       </Suspense>
-      <div className="px-5 space-y-3">
+      {/* Deux colonnes dès que la place existe : les cartes d'athlète sont
+          des tuiles, pas du texte suivi — les empiler sur un écran large
+          oblige à faire défiler pour comparer deux athlètes. */}
+      <div className="px-5 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
         {cards.map((c) => (
           <AthleteCard
             key={c.athlete.id}

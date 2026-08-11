@@ -117,6 +117,12 @@ jobs:
       - name: Parcours connectés
         run: npm run test:e2e:auth
 
+      # Même base, autre largeur : les vues reprises pour le grand écran
+      # (#65). Sans ce passage, rien ne les rejouerait — tout le reste de la
+      # suite tourne en Pixel 7.
+      - name: Vues en largeur bureau
+        run: npm run test:e2e:bureau
+
       - name: Rapport Playwright en cas d'échec
         if: failure()
         uses: actions/upload-artifact@v7

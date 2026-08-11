@@ -62,20 +62,24 @@ const COLONNES: Record<number, string> = {
  *
  * Toujours rendu, seule l'opacité change : un élément qui apparaît décalerait
  * la mise en page au moment même où l'utilisateur attend.
+ *
+ * Le trait longe le bord par lequel l'onglet touche le contenu : en haut de
+ * la tuile sur téléphone (barre en bas), à gauche de la ligne sur ordinateur
+ * (colonne à gauche).
  */
 function TraitDeNavigation() {
   const { pending } = useLinkStatus();
   return (
     <span
       aria-hidden
-      className={`absolute inset-x-4 top-0 h-0.5 rounded-full bg-pine transition-opacity duration-150 ${
+      className={`absolute rounded-full bg-pine transition-opacity duration-150 inset-x-4 top-0 h-0.5 md:inset-x-auto md:inset-y-1 md:left-0 md:h-auto md:w-0.5 ${
         pending ? "opacity-100 animate-pulse" : "opacity-0"
       }`}
     />
   );
 }
 
-export function BottomNav({
+export function Nav({
   mode,
   userId,
   unreadMessages,
@@ -124,13 +128,20 @@ export function BottomNav({
   const tabs = TABS[mode];
 
   return (
+    // Barre collée en bas sur téléphone — c'est un geste de pouce. Colonne
+    // à gauche sur ordinateur, où le pouce n'a rien à voir et où la hauteur
+    // est la ressource abondante. `sticky` plutôt que `fixed` au-delà de
+    // `md` : la colonne appartient alors au flux, et le contenu n'a plus à
+    // réserver de place sous lui.
     <nav
       aria-label="Navigation principale"
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-card/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-1/2 z-10 w-full max-w-md -translate-x-1/2 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:static md:h-dvh md:w-52 md:shrink-0 md:translate-x-0 md:self-start md:border-t-0 md:border-r md:bg-transparent md:pb-0 md:pt-6 md:sticky md:top-0"
     >
       {/* Classes écrites en toutes lettres : Tailwind ne voit pas une classe
           construite à la volée. */}
-      <div className={COLONNES[tabs.length] ?? "grid grid-cols-5"}>
+      <div
+        className={`${COLONNES[tabs.length] ?? "grid grid-cols-5"} md:flex md:flex-col md:gap-1 md:pr-3`}
+      >
         {tabs.map((tab) => {
           const active =
             tab.href === "/"
@@ -142,12 +153,14 @@ export function BottomNav({
               key={tab.href}
               href={tab.href as never}
               aria-current={active ? "page" : undefined}
-              className={`relative flex min-w-0 flex-col items-center gap-0.5 px-0.5 pt-2.5 pb-2 text-[11px] font-medium transition-colors ${
-                active ? "text-pine" : "text-ink-soft hover:text-ink"
+              className={`relative flex min-w-0 flex-col items-center gap-0.5 px-0.5 pt-2.5 pb-2 text-[11px] font-medium transition-colors md:flex-row md:items-center md:gap-3 md:rounded-xl md:px-3 md:py-2.5 md:text-[15px] ${
+                active
+                  ? "text-pine md:bg-pine-soft"
+                  : "text-ink-soft hover:text-ink md:hover:bg-line/40"
               }`}
             >
               <TraitDeNavigation />
-              <span className="relative">
+              <span className="relative md:shrink-0">
                 <tab.icon className="size-6" />
                 {count > 0 && (
                   <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 rounded-full bg-rpe-max text-card text-[10px] font-bold flex items-center justify-center">
@@ -157,8 +170,10 @@ export function BottomNav({
               </span>
               {/* Six onglets sur un écran de téléphone : le libellé le plus
                   long tient de justesse, mais ne doit jamais pousser la
-                  colonne ni passer à la ligne. */}
-              <span className="w-full truncate text-center">{tab.label}</span>
+                  colonne ni passer à la ligne. Aligné à gauche en colonne. */}
+              <span className="w-full truncate text-center md:text-left">
+                {tab.label}
+              </span>
             </Link>
           );
         })}

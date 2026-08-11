@@ -191,99 +191,106 @@ export function BatchPlanner({
         </div>
       </section>
 
-      {/* 2. Les athlètes */}
-      <section>
-        <div className="flex items-baseline justify-between mb-2">
-          <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft">
-            Pour qui
-          </h2>
-          <button
-            type="button"
-            onClick={() =>
-              setSelectedAthletes(
-                selectedAthletes.length === athletes.length
-                  ? []
-                  : athletes.map((a) => a.id)
-              )
-            }
-            className="text-[13px] font-semibold text-pine"
-          >
-            {selectedAthletes.length === athletes.length
-              ? "Tout décocher"
-              : "Tout le groupe"}
-          </button>
-        </div>
-        <div className="space-y-2">
-          {athletes.map((a) => {
-            const on = selectedAthletes.includes(a.id);
-            return (
-              <button
-                key={a.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setSelectedAthletes(toggle(selectedAthletes, a.id))}
-                className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                  on ? "border-pine bg-pine-soft" : "border-line bg-card"
-                }`}
-              >
-                <span className="size-9 shrink-0 rounded-full bg-card border border-line text-pine font-display font-semibold text-[13px] flex items-center justify-center">
-                  {initials(a.full_name)}
-                </span>
-                <span className="flex-1 font-medium truncate">{a.full_name}</span>
-                <span
-                  className={`size-5 rounded-full flex items-center justify-center ${
-                    on ? "bg-pine text-card" : "border border-line"
+      {/* 2 et 3 côte à côte dès que la place existe : c'est le croisement
+          athlètes × dates que le coach fait des yeux, et l'obliger à faire
+          défiler de l'un à l'autre est précisément ce qui rendait cet écran
+          pénible à la souris. */}
+      <div className="space-y-6 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+        {/* 2. Les athlètes */}
+        <section>
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              Pour qui
+            </h2>
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedAthletes(
+                  selectedAthletes.length === athletes.length
+                    ? []
+                    : athletes.map((a) => a.id)
+                )
+              }
+              className="text-[13px] font-semibold text-pine"
+            >
+              {selectedAthletes.length === athletes.length
+                ? "Tout décocher"
+                : "Tout le groupe"}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {athletes.map((a) => {
+              const on = selectedAthletes.includes(a.id);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setSelectedAthletes(toggle(selectedAthletes, a.id))}
+                  className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                    on ? "border-pine bg-pine-soft" : "border-line bg-card"
                   }`}
                 >
-                  {on && <IconCheck className="size-3.5" />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 3. Les dates */}
-      <section>
-        <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">
-          Quand
-        </h2>
-        <div className="space-y-2">
-          {weeks.map((week, i) => (
-            <div key={i} className="flex gap-1.5">
-              {week.map((day) => {
-                const on = selectedDates.includes(day.iso);
-                return (
-                  <button
-                    key={day.iso}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={day.iso}
-                    onClick={() => setSelectedDates(toggle(selectedDates, day.iso))}
-                    className={`flex-1 min-w-0 rounded-lg border py-2 transition-colors ${
-                      on
-                        ? "border-pine bg-pine text-card"
-                        : day.isToday
-                          ? "border-pine/50 bg-card"
-                          : "border-line bg-card"
+                  <span className="size-9 shrink-0 rounded-full bg-card border border-line text-pine font-display font-semibold text-[13px] flex items-center justify-center">
+                    {initials(a.full_name)}
+                  </span>
+                  <span className="flex-1 font-medium truncate">{a.full_name}</span>
+                  <span
+                    className={`size-5 rounded-full flex items-center justify-center ${
+                      on ? "bg-pine text-card" : "border border-line"
                     }`}
                   >
-                    <span className="block text-[10px] uppercase opacity-70">
-                      {day.initial}
-                    </span>
-                    <span className="block font-display text-[16px] font-semibold tabular-nums">
-                      {day.dayOfMonth}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </section>
+                    {on && <IconCheck className="size-3.5" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-      {/* Récapitulatif et validation */}
-      <div className="sticky bottom-24 space-y-2">
+        {/* 3. Les dates */}
+        <section>
+          <h2 className="font-display text-[16px] font-semibold uppercase tracking-[0.12em] text-ink-soft mb-2">
+            Quand
+          </h2>
+          <div className="space-y-2">
+            {weeks.map((week, i) => (
+              <div key={i} className="flex gap-1.5">
+                {week.map((day) => {
+                  const on = selectedDates.includes(day.iso);
+                  return (
+                    <button
+                      key={day.iso}
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={day.iso}
+                      onClick={() => setSelectedDates(toggle(selectedDates, day.iso))}
+                      className={`flex-1 min-w-0 rounded-lg border py-2 transition-colors ${
+                        on
+                          ? "border-pine bg-pine text-card"
+                          : day.isToday
+                            ? "border-pine/50 bg-card"
+                            : "border-line bg-card"
+                      }`}
+                    >
+                      <span className="block text-[10px] uppercase opacity-70">
+                        {day.initial}
+                      </span>
+                      <span className="block font-display text-[16px] font-semibold tabular-nums">
+                        {day.dayOfMonth}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Récapitulatif et validation. Collé au-dessus de la barre du bas sur
+          téléphone ; sur ordinateur elle est à gauche, plus rien à enjamber. */}
+      <div className="sticky bottom-24 space-y-2 md:bottom-4">
         {state?.error && (
           <p className="rounded-xl bg-rpe-max-soft px-3.5 py-2.5 text-sm font-medium text-rpe-max">
             {state.error}
