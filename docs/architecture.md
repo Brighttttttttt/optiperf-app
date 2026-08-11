@@ -84,7 +84,9 @@ flowchart LR
    à part, avec sa propre URL.
 4. **La CI doit être verte** pour pouvoir fusionner.
 5. **Merge squash** : la PR devient **un seul commit** sur `master`. Son message
-   est le titre + la description de la PR — c'est pour ça qu'on les soigne.
+   est le titre + la description de la PR — c'est pour ça qu'on les soigne, et
+   pourquoi ce sont les seuls textes du projet écrits en **anglais**, au format
+   Conventional Commits (voir [CONTRIBUTING.md](../CONTRIBUTING.md)).
 6. **Vercel déploie la production**, puis un second workflow va vérifier le site
    réellement en ligne.
 
