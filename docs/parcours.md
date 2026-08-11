@@ -5,8 +5,12 @@ l'une à l'autre. C'est la carte du site : à lire avant d'ajouter un écran, po
 savoir d'où on y entrera et où l'on ira ensuite.
 
 Le catalogue des fonctionnalités est dans
-[fonctionnalites.md](fonctionnalites.md) ; l'architecture technique dans
-[architecture.md](architecture.md).
+[fonctionnalites.md](fonctionnalites.md), le modèle de données dans
+[donnees.md](donnees.md), l'architecture technique dans
+[architecture.md](architecture.md). Index : [docs/](README.md).
+
+Cette carte est **tenue par un test** : `src/lib/docs-parcours.test.ts` échoue
+si une route de `src/app/` n'y figure pas.
 
 ## Trois zones, trois régimes d'accès
 

@@ -5,7 +5,8 @@ dans le code. Document de **référence** : il répond à « est-ce que ça exis
 où ? », pas à « comment on s'en sert » (ça, c'est le [README](../README.md)) ni
 à « pourquoi c'est fait comme ça » (c'est [CLAUDE.md](../CLAUDE.md)).
 
-La carte des pages est dans [parcours.md](parcours.md).
+La carte des pages est dans [parcours.md](parcours.md), le modèle de données
+dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 
 **À tenir à jour dans la même PR que la fonctionnalité**, comme les tests et
 `CLAUDE.md`.

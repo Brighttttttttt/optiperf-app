@@ -124,11 +124,15 @@ npm run test:e2e:auth
 - [ ] `README.md` si l'installation ou l'usage change,
 - [ ] `docs/architecture.md` si la structure change,
 - [ ] `docs/fonctionnalites.md` si une fonctionnalité apparaît ou disparaît,
-- [ ] `docs/parcours.md` si une page apparaît, disparaît, ou change d'accès.
+- [ ] `docs/parcours.md` si une page apparaît, disparaît, ou change d'accès,
+- [ ] `docs/donnees.md` si une table, une politique ou un trigger change,
+- [ ] `docs/guides.md` si un geste courant change de mode d'emploi.
 
-Les deux derniers sont le contrat passé avec quelqu'un qui arrive sur le projet :
-ils ne valent que s'ils sont exacts. Un catalogue faux coûte plus cher que pas
-de catalogue.
+Les quatre documents de `docs/` sont le contrat passé avec quelqu'un qui arrive
+sur le projet : ils ne valent que s'ils sont exacts. **Un catalogue faux coûte
+plus cher que pas de catalogue** — on lui fait confiance, donc on ne vérifie
+plus. Un seul est tenu par un test (`src/lib/docs-parcours.test.ts` échoue si
+une route n'est pas dans la carte) ; les autres reposent sur la relecture.
 
 ## Migrations SQL
 

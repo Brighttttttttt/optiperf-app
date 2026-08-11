@@ -4,9 +4,10 @@ Vue d'ensemble, volontairement simple. Les détails et les pièges vivent dans
 [CLAUDE.md](../CLAUDE.md) ; les conventions de travail dans
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Deux documents de référence complètent celui-ci : le catalogue des
-fonctionnalités ([fonctionnalites.md](fonctionnalites.md)) et la carte des pages
-([parcours.md](parcours.md)).
+Ce document explique **pourquoi** le projet est fait ainsi. Pour ce qui existe
+et où, va aux références : [fonctionnalites.md](fonctionnalites.md),
+[parcours.md](parcours.md), [donnees.md](donnees.md). Pour les gestes courants,
+[guides.md](guides.md). L'index complet est dans [docs/](README.md).
 
 ## En une phrase
 
