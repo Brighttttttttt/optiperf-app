@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
+import { getViewMode } from "@/lib/view-mode";
 import { Card, PageHeader } from "@/components/ui";
 import { InviteCode } from "@/components/InviteCode";
 import { LinkCoachForm } from "@/components/LinkCoachForm";
@@ -21,8 +22,13 @@ export default async function SettingsPage() {
   const profile = await getSessionProfile();
   if (!user || !profile) redirect("/login");
 
+  // Les réglages suivent le mode d'affichage : un coach qui s'entraîne a
+  // besoin de sa FC max, de sa VMA et de ses records — pas de son code
+  // d'invitation ni de ses modèles de séance, qui ne servent qu'à encadrer.
+  const mode = await getViewMode();
+
   let templates: SessionTemplate[] = [];
-  if (profile.role === "coach") {
+  if (mode === "coach") {
     const { data } = await supabase
       .from("session_templates")
       .select("*")
@@ -33,7 +39,7 @@ export default async function SettingsPage() {
 
   let coach: Profile | null = null;
   let records: PersonalRecord[] = [];
-  if (profile.role === "athlete") {
+  if (mode === "athlete") {
     const { data: link } = await supabase
       .from("coach_athletes")
       .select("coach_id")
@@ -58,7 +64,7 @@ export default async function SettingsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={profile.role === "coach" ? "Compte coach" : "Compte athlète"}
+        eyebrow={mode === "coach" ? "Compte coach" : "Compte athlète"}
         title="Réglages"
       />
       <div className="px-5 space-y-4">
@@ -77,13 +83,13 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
-        {profile.role === "coach" && profile.invite_code && (
+        {mode === "coach" && profile.invite_code && (
           <InviteCode code={profile.invite_code} />
         )}
 
-        {profile.role === "coach" && <TemplateList templates={templates} />}
+        {mode === "coach" && <TemplateList templates={templates} />}
 
-        {profile.role === "athlete" && (
+        {mode === "athlete" && (
           <Card className="p-4">
             <p className="font-semibold">Fréquence cardiaque</p>
             <p className="mt-0.5 text-[13px] text-ink-soft">
@@ -95,7 +101,7 @@ export default async function SettingsPage() {
           </Card>
         )}
 
-        {profile.role === "athlete" && (
+        {mode === "athlete" && (
           <Card className="p-4">
             <p className="font-semibold">Records personnels</p>
             <p className="mt-0.5 text-[13px] text-ink-soft">
@@ -107,7 +113,7 @@ export default async function SettingsPage() {
           </Card>
         )}
 
-        {profile.role === "athlete" && (
+        {mode === "athlete" && (
           <Card className="p-4">
             <p className="font-semibold">VMA</p>
             <div className="mt-3">
@@ -116,7 +122,7 @@ export default async function SettingsPage() {
           </Card>
         )}
 
-        {profile.role === "athlete" && (
+        {mode === "athlete" && (
           <Card className="p-4">
             <p className="font-semibold">Mon coach</p>
             {coach ? (

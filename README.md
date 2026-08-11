@@ -31,6 +31,7 @@ migrations.
    - `010_zones_fc.sql` — FC max/repos de l'athlète, base du calcul des zones de fréquence cardiaque
    - `012_records_vma.sql` — records personnels par distance standard et VMA de l'athlète
    - `013_musculation.sql` — exercices prescrits et compte rendu d'une séance de musculation
+   - `014_coach_qui_sentraine.sql` — un coach peut aussi s'entraîner, et rejoindre un autre coach
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.
@@ -109,6 +110,7 @@ Dependabot propose chaque semaine les mises à jour npm et GitHub Actions.
 - **Installable** : depuis Safari ou Chrome, « Ajouter à l'écran d'accueil » pose l'icône Optiperf sur le téléphone ; l'app s'ouvre alors en plein écran, sans barre d'adresse.
 - **Planification groupée** : un écran unique où le coach décrit la séance une fois, coche plusieurs athlètes et plusieurs dates, et crée tout en un envoi. Les séances récurrentes se gardent en **modèles** réutilisables ; une séance déjà planifiée se **duplique** en un tap.
 - **Athlète** : séances à venir, saisie du réalisé avec la rampe RPE 1–10, séances libres, historique, messagerie avec son coach.
+- **Un coach s'entraîne aussi** : une bascule « Je coache / Je m'entraîne » en haut de l'écran ouvre son propre entraînement — ses séances, son RPE, ses imports, sa charge — sans changer de compte. Il peut même rejoindre un autre coach avec un code d'invitation.
 - **Vue semaine, des deux côtés** : le coach depuis la fiche athlète, l'athlète depuis son onglet **Planning**. Chaque jour ouvre le détail de ses séances — état (fait, manquée, à rattraper, à venir) et contenu (blocs de fractionné, exercices de musculation) lisibles sans avoir à ouvrir la séance.
 - **Import depuis la montre** : l'athlète dépose le fichier exporté de sa montre (GPX ou TCX), l'app en tire la date, la durée, la distance et la fréquence cardiaque, propose de le rattacher à une séance du même jour — et ne demande plus que le **RPE**, la seule chose qu'aucune montre ne mesure. Le fichier est lu par le navigateur : rien ne transite hors ce qui s'affiche à l'écran. Un même fichier déposé deux fois est refusé.
 - **Rappel du dimanche** : chaque dimanche soir, le coach reçoit une notification nommant les athlètes sans séance prévue pour la semaine qui commence — et rien du tout si tout est planifié. La tâche vit dans la base (`pg_cron`), pas côté hébergeur : aucune clé secrète à déployer, aucune URL à protéger.

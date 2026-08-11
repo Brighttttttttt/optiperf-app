@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
+import { getSessionUser } from "@/lib/supabase/session";
+import { getViewMode } from "@/lib/view-mode";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { BatchPlanner } from "@/components/BatchPlanner";
 import type { Profile, SessionTemplate, TrainingSession } from "@/lib/types";
@@ -13,9 +14,11 @@ export default async function PlanifierPage({
   const { athlete: preselected, depuis, date } = await searchParams;
   const supabase = await createClient();
   const user = await getSessionUser();
-  const profile = await getSessionProfile();
   if (!user) redirect("/login");
-  if (profile?.role !== "coach") redirect("/");
+  // Le mode, pas le rôle : prescrire n'a pas de sens depuis la vue « je
+  // m'entraîne », et laisser l'écran accessible en dépit du mode affiché
+  // ferait douter de celui dans lequel on se trouve.
+  if ((await getViewMode()) !== "coach") redirect("/");
 
   const { data: links } = await supabase
     .from("coach_athletes")
