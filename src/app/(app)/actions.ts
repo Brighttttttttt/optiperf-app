@@ -372,6 +372,56 @@ export async function deleteSession(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+// ---------- Note du coach ----------
+
+/**
+ * Écrit, remplace ou efface la note libre du coach sur un athlète.
+ *
+ * Une seule action pour les trois cas : le formulaire est un carnet, pas un
+ * cycle création / édition / suppression. Vider le champ et enregistrer est la
+ * façon naturelle d'effacer une note — inutile d'exiger un second geste.
+ *
+ * La RLS (migration 015) fait tout le contrôle d'accès : `coach_id` doit être
+ * l'utilisateur et `athlete_id` l'un de ses athlètes. Rien n'est revérifié
+ * ici, ce serait une seconde vérité à maintenir.
+ */
+export async function saveCoachNote(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+  const athleteId = String(formData.get("athlete_id") ?? "");
+  if (!athleteId) return { error: "Athlète introuvable." };
+
+  const content = optionalText(formData, "content", LIMITS.notes);
+  if (content === undefined) return tooLong("La note", LIMITS.notes);
+
+  if (content === null) {
+    const { error } = await supabase
+      .from("coach_notes")
+      .delete()
+      .eq("coach_id", user.id)
+      .eq("athlete_id", athleteId);
+    if (error) return { error: "Impossible d'effacer la note." };
+  } else {
+    // `upsert` sur la contrainte d'unicité (coach, athlète) : une note par
+    // paire, réécrite en place plutôt qu'empilée.
+    const { error } = await supabase.from("coach_notes").upsert(
+      {
+        coach_id: user.id,
+        athlete_id: athleteId,
+        content,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "coach_id,athlete_id" }
+    );
+    if (error) return { error: "Impossible d'enregistrer la note." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 // ---------- Objectifs ----------
 
 export async function addObjective(
