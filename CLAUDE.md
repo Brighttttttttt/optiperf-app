@@ -10,7 +10,7 @@ App mobile-first de suivi d'entraînement coach ↔ athlète. Toute l'interface 
 - `npm test` — tests unitaires Vitest (`src/lib/*.test.ts`)
 - `npm run test:e2e` — e2e de fumée, sans base (faire `npm run build` avant)
 - `npm run test:e2e:auth` — parcours connectés contre une base réelle (base locale via la CLI Supabase en intégration continue). **Tout changement touchant au rendu d'une page authentifiée doit être couvert ici.**
-- `npm run test:prod` — contrôle d'affichage dans un vrai navigateur contre le site en ligne, rejoué après chaque déploiement. Les tests locaux sont trop rapides pour reproduire les défauts liés au flux de rendu : ce contrôle est le seul à voir qu'une page répond correctement tout en n'affichant rien (incident #44).
+- `npm run test:prod` — contrôle d'affichage dans un vrai navigateur contre le site en ligne, rejoué après chaque déploiement. Les tests locaux sont trop rapides pour reproduire les défauts liés au flux de rendu : ce contrôle est le seul à voir qu'une page répond correctement tout en n'affichant rien (incident #44). **Ne jamais y nommer une donnée de démo** (un athlète, un titre de séance) : le jeu en ligne ne vient pas de `npm run seed` mais d'un script propre à la production, et il change quand on le régénère. Un contrôle qui cherche « Léa Martin » passe au rouge sans qu'aucune page ne soit cassée. Ce qui se vérifie ici, c'est qu'une page **affiche ses données**, jamais lesquelles.
 - `npm run lint` et `npm run typecheck` — exigés par la CI
 - `npm run smoke` — test de fumée contre la production déployée (routage CDN, en-têtes, POST des server actions) ; rejoué automatiquement après chaque déploiement
 - `npm run seed` — données de démo (demande `SUPABASE_SECRET_KEY` dans `.env.local`)
@@ -52,7 +52,7 @@ GitHub Flow, protégé par ruleset : jamais de push direct sur `master`. Branche
 Conventions détaillées dans `CONTRIBUTING.md`, vue d'ensemble dans `docs/architecture.md` — les deux sont à jour et font autorité sur ce point. L'essentiel :
 
 - Le merge est un **squash** : le message du commit final est le **titre + la description de la PR**. C'est là que se joue la lisibilité de l'historique, pas dans les commits intermédiaires.
-- Titre : impératif ou groupe nominal en français, sans préfixe technique (`feat:`, `fix:`), 70 caractères max.
+- **Titre et description de PR sont en anglais**, au format Conventional Commits (`type(portée): résumé à l'impératif`, 70 caractères max, sans point final). Le reste du projet — app, issues, code, commentaires, documentation — **reste en français**. Types en usage : `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `ci`, `chore`, `revert`. Ni `BREAKING CHANGE` ni versionnage sémantique : il n'y a aucun dépendant à prévenir, seulement la production. La frontière dans l'historique est nette — avant #109 en français sans préfixe, après en anglais préfixé.
 - Description : le *quoi* se lit dans le diff, elle explique le **pourquoi** — avec la mesure ou le fait observé qui a motivé le changement, et ce qui a été écarté.
 - Modèles d'issues et de PR dans `.github/` : les remplir plutôt que les vider.
 - **Une migration ajoutée en PR n'est pas appliquée en production** : la CI la valide sur une base neuve, mais la pose reste manuelle dans le SQL Editor Supabase. Le signaler explicitement en fin de PR.
