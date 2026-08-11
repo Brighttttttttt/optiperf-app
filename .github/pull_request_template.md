@@ -36,6 +36,10 @@ constaté : une mesure, une erreur, un comportement observé.
 - [ ] `CLAUDE.md` — une règle ou un piège a changé
 - [ ] `README.md` — l'installation ou l'usage a changé
 - [ ] `docs/architecture.md` — la structure a changé
+- [ ] `docs/fonctionnalites.md` — une fonctionnalité apparaît ou disparaît
+- [ ] `docs/parcours.md` — une page apparaît, disparaît, ou change d'accès
+- [ ] `docs/donnees.md` — une table, une politique ou un trigger a changé
+- [ ] `docs/guides.md` — un geste courant a changé de mode d'emploi
 - [ ] Rien à mettre à jour
 
 ## After merge
