@@ -28,7 +28,17 @@ c'est le seul geste manuel qui reste, et rien ne vérifie qu'il a été fait.
 Une migration en `create or replace function` se rejoue sans risque, même
 plusieurs fois. Une migration qui crée une table, non.
 
-**Pour savoir où en est la production**, sans rien écrire : interroge l'API REST
+**C'est vérifié automatiquement depuis #121** : `npm run smoke` compare les
+tables déclarées dans `supabase/migrations/` à ce que la base expose, et échoue
+en nommant le fichier non appliqué. Le contrôle après déploiement passe donc au
+rouge si une migration a été oubliée — ce qui n'était pas le cas quand la
+production a tourné sept migrations en retard pendant des semaines.
+
+Attention à sa portée : seules les migrations qui **créent une table** sont
+couvertes. Une migration qui n'ajoute qu'une colonne ou remplace une fonction
+passe au travers.
+
+**Pour vérifier une table à la main**, sans rien écrire : interroge l'API REST
 sans être connecté. `anon` n'a de droit sur aucune table, donc la réponse
 distingue les deux cas qui nous intéressent.
 
@@ -123,6 +133,34 @@ Le contenu change, la charpente non.
    `blocs-isolation.spec.ts` : il s'adresse à la base sans passer par les pages.
    C'est le seul endroit où se vérifie ce qu'une politique **refuse**.
 6. **Mets à jour [donnees.md](donnees.md)** et le README (liste des migrations).
+
+---
+
+## Régénérer le jeu de démonstration en ligne
+
+Deux scripts existent et **ne servent pas à la même chose**. Les confondre a déjà
+coûté deux contrôles de production au rouge (#117).
+
+| | `npm run seed` | `npm run demo` |
+|---|---|---|
+| Pour quoi | Faire tourner `e2e-auth` | Parcourir l'app comme un utilisateur |
+| Contenu | 1 coach + 3 athlètes | 1 coach + 5 athlètes |
+| Noms | **Lus en dur dans les tests** — les changer les casse | Libres, ils changent à chaque régénération |
+| Cible | La base de `.env.local` (en CI, une base neuve) | La base de `.env.local` |
+
+Pour repeupler la démo en ligne :
+
+1. Vérifie que `.env.local` pointe la base **de production** et contient
+   `SUPABASE_SECRET_KEY`. Le script affiche sa cible avant d'écrire — lis-la.
+2. `npm run demo`.
+3. Rejoue les contrôles : `npm run smoke` puis `npm run test:prod`.
+
+Le script est relançable : il remplace les données des comptes de démo et ne
+touche à aucun autre compte.
+
+**Ne nomme jamais un athlète de démo dans un test.** Le jeu en ligne change
+quand on le régénère, et un contrôle qui cherche un nom passe au rouge sans
+qu'aucune page ne soit cassée. C'est arrivé deux fois.
 
 ---
 

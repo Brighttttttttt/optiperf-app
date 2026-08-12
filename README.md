@@ -74,11 +74,18 @@ L'app tourne sur http://localhost:3000.
 
 ### 4. (Optionnel) Données de démo
 
+Deux scripts, deux usages — ils ne se remplacent pas l'un l'autre.
+
 ```bash
-npm run seed
+npm run seed   # pour faire tourner les tests connectés
+npm run demo   # pour parcourir l'app soi-même
 ```
 
-Crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de passe : `optiperf-demo`) :
+**`npm run seed`** crée 1 coach + 3 athlètes avec 5 semaines d'historique contrasté (mot de passe : `optiperf-demo`). Ces noms et emails sont **lus en dur** par `e2e-auth/*.spec.ts` : les changer casse les tests connectés.
+
+**`npm run demo`** crée un groupe plus fourni (1 coach + 5 athlètes) destiné à visiter l'app comme un utilisateur. C'est lui qui peuple la démo en ligne. Relançable : il remplace les données des comptes de démo, jamais celles d'un autre compte.
+
+Les deux ciblent la base pointée par `.env.local` et demandent `SUPABASE_SECRET_KEY`. Comptes du `seed` :
 
 | Compte | Rôle | Profil |
 |---|---|---|

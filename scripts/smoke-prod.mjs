@@ -5,6 +5,8 @@
 //
 // Usage : node scripts/smoke-prod.mjs [url]
 
+import { readdirSync, readFileSync } from "node:fs";
+
 const BASE =
   process.argv[2] ??
   process.env.SMOKE_URL ??
@@ -138,6 +140,49 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
       "la page ne contient que son écran d'attente"
     );
   }
+}
+
+// 7. La base a-t-elle reçu toutes les migrations du dépôt ?
+//    Le seul geste manuel du déploiement est aussi le seul que rien ne
+//    vérifiait : la production a tourné sept migrations en retard pendant des
+//    semaines sans qu'aucun test ne bronche. Une table absente ne provoque pas
+//    d'erreur visible — la requête échoue, la page rend une liste vide, et la
+//    fonctionnalité a simplement disparu.
+//
+//    La sonde n'a besoin d'aucune session : `anon` n'a de droit sur aucune
+//    table (migration 006), donc la réponse distingue les deux cas.
+//      401/403 → la table existe et elle est verrouillée : migration posée
+//      404     → PostgREST ne connaît pas la table : migration absente
+//
+//    Portée assumée : seules les migrations qui **créent une table** sont
+//    vérifiables ainsi. Celles qui n'ajoutent qu'une colonne (010, 012) ou
+//    remplacent une fonction (014) passent au travers — le contrôle attrape la
+//    disparition d'une fonctionnalité entière, pas d'un champ.
+if (SUPABASE_URL && SUPABASE_KEY) {
+  const dossier = new URL("../supabase/migrations/", import.meta.url);
+  const attendues = new Map(); // table -> fichier de migration
+  for (const nom of readdirSync(dossier).sort()) {
+    if (!nom.endsWith(".sql")) continue;
+    const sql = readFileSync(new URL(nom, dossier), "utf8");
+    for (const [, table] of sql.matchAll(/^create table public\.(\w+)/gim)) {
+      attendues.set(table, nom);
+    }
+  }
+
+  const manquantes = [];
+  for (const [table, fichier] of attendues) {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1`,
+      { headers: { apikey: SUPABASE_KEY } }
+    );
+    if (r.status === 404) manquantes.push(`${table} (${fichier})`);
+  }
+
+  check(
+    `les ${attendues.size} tables des migrations existent en base`,
+    manquantes.length === 0,
+    `absentes : ${manquantes.join(", ")} — migration non appliquée dans le SQL Editor`
+  );
 }
 
 const failed = checks.filter((c) => !c.ok);
