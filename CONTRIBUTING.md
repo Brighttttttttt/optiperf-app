@@ -92,6 +92,29 @@ La règle : **le quoi se lit dans le diff, la description explique le pourquoi.*
 Ce qui rend une description utile, c'est ce qu'elle empêche de refaire : la
 raison d'un choix, l'alternative écartée, le piège découvert en route.
 
+## Fusionner
+
+Le dépôt est réglé pour que la fusion soit **toujours un squash**, dont le sujet
+est le **titre de la PR** et le corps sa **description**. C'est le réglage, pas
+la discipline, qui le garantit : il l'a fallu, deux commits étant partis sur
+`master` avec `@` pour sujet parce que GitHub reprenait le message du commit
+local quand la PR n'en portait qu'un.
+
+**Attention avec `gh`.** `gh pr merge --squash` envoie un corps de commit vide,
+qui **écrase le réglage du dépôt** : la description de la PR est alors perdue de
+l'historique. Deux façons de s'en sortir :
+
+```bash
+# depuis l'interface web : rien à faire, les réglages du dépôt s'appliquent
+
+# en ligne de commande : repasser explicitement la description
+gh pr view <N> --json body --jq .body > /tmp/b.md
+gh pr merge <N> --squash --auto --delete-branch   --subject "$(gh pr view <N> --json title --jq .title) (#<N>)" --body-file /tmp/b.md
+```
+
+`--auto` arme la fusion : GitHub met la branche à jour si elle a pris du retard,
+attend que la CI passe, puis fusionne et supprime la branche.
+
 ## Issues
 
 Trois modèles proposés à l'ouverture ([.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE)) :
