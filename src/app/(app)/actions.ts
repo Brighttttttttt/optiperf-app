@@ -5,13 +5,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
-import { LIMITS } from "@/lib/types";
+import { activitySourceLabel, LIMITS, type Activity } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
 import {
   chargerFenetrePlanning,
   type FenetrePlanning,
 } from "@/lib/session-details";
 import { validerTours, validerTrace } from "@/lib/activites";
+import { trouverDoublon } from "@/lib/doublons";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
@@ -22,7 +23,15 @@ import {
   type MethodeZones,
 } from "@/lib/zones";
 
-export type ActionState = { error?: string; ok?: boolean } | null;
+export type ActionState = {
+  error?: string;
+  ok?: boolean;
+  /**
+   * Le refus est un rapprochement, pas une règle : l'appelant doit pouvoir
+   * proposer de passer outre (#107). Un `error` seul se lit comme définitif.
+   */
+  doublon?: boolean;
+} | null;
 
 async function requireUser() {
   const supabase = await createClient();
@@ -791,6 +800,45 @@ export async function importActivity(
     distance_m: nombreOuNull("distance_m", 0, 1_000_000),
     avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
   };
+
+  // La même sortie sous deux formats (#107) : contenus différents, empreintes
+  // différentes, donc la contrainte SQL de 007 ne voit rien. Le rapprochement
+  // est souple par nature — on demande donc, on ne décide pas.
+  //
+  // Les activités du jour suffisent : deux enregistrements de la même sortie
+  // partagent forcément sa date, calculée à Paris de part et d'autre.
+  if (formData.get("force") !== "1") {
+    const { data: duJour } = await supabase
+      .from("activities")
+      .select("id, started_at, duration_min, file_name, source")
+      .eq("athlete_id", user.id)
+      .eq("date", date)
+      // Le redépôt du même fichier a son propre chemin, plus haut : il reprend
+      // l'activité au lieu de la signaler.
+      .neq("external_id", externalId);
+
+    const jumelle = trouverDoublon(
+      { startedAt, durationMin: Math.round(duration) },
+      ((duJour ?? []) as Pick<
+        Activity,
+        "id" | "started_at" | "duration_min" | "file_name" | "source"
+      >[]).map((a) => ({
+        ...a,
+        startedAt: a.started_at,
+        durationMin: a.duration_min,
+      }))
+    );
+
+    if (jumelle) {
+      const quoi = jumelle.file_name
+        ? `« ${jumelle.file_name} »`
+        : `un relevé ${activitySourceLabel(jumelle.source)}`;
+      return {
+        doublon: true,
+        error: `Cette sortie ressemble à ${quoi}, déjà importée à la même heure. L'enregistrer une seconde fois compterait sa charge en double.`,
+      };
+    }
+  }
 
   const { data: activite, error: erreurActivite } = await supabase
     .from("activities")

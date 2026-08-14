@@ -238,8 +238,17 @@ export function ImportActivityForm({
             <p className="text-sm font-medium text-rpe-max">{state.error}</p>
           )}
 
+          {/* Un doublon reconnu au chevauchement des heures, jamais à
+              l'identité du fichier : le rapprochement est souple, donc
+              faillible, donc franchissable. L'athlète est seul à savoir s'il
+              a couru deux fois. Le champ n'apparaît qu'après le refus —
+              l'offrir d'emblée reviendrait à ne rien vérifier. */}
+          {state?.doublon && <input type="hidden" name="force" value="1" />}
+
           <div className="flex gap-2">
-            <SubmitButton className="flex-1 py-2.5">Enregistrer</SubmitButton>
+            <SubmitButton className="flex-1 py-2.5">
+              {state?.doublon ? "Enregistrer quand même" : "Enregistrer"}
+            </SubmitButton>
             <button type="button" onClick={onCancel} className={btnGhost}>
               Annuler
             </button>

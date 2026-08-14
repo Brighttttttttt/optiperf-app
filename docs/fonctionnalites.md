@@ -50,6 +50,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Compte rendu de musculation | Ce qui a réellement été fait, exercice par exercice. | `exercise_logs` (013), `ExerciseLogsEditor` |
 | Séance libre | Déclarer une sortie qui n'avait pas été prescrite. | `FreeSessionForm` |
 | Import d'un fichier de montre | Déposer un GPX, TCX ou FIT. **Le fichier est lu par le navigateur**, jamais envoyé au serveur ; l'athlète voit ce qui en a été tiré avant de valider. | `ImportActivityForm`, `src/lib/activites.ts` |
+| Doublon d'une même sortie | Deux formats de la même sortie (un GPX puis le FIT, pour avoir les tours) portent deux empreintes : la contrainte SQL ne les voit pas. Le rapprochement se fait sur l'heure de départ et la durée, et **se franchit** — l'athlète seul sait s'il a couru deux fois. | `src/lib/doublons.ts`, `importActivity` |
 | Fichiers importés | La liste des relevés déposés, **pour eux-mêmes** : ceux que plus aucune séance ne porte s'y voient, et s'y suppriment. Supprimer un relevé rend le fichier déposable à nouveau ; la séance qu'il documentait reste. | `/activites`, `DeleteActivityButton` |
 | Trace de l'activité | Fréquence cardiaque, allure et altitude au fil de la sortie, sous-échantillonnées à 400 points. | `activity_traces` (009), `ActivityTraceChart` |
 | Zones de fréquence cardiaque | Répartition du temps par zone, selon **trois méthodes** au choix de l'athlète : % FC max, % seuil (LTHR), ou réserve (Karvonen). La méthode s'affiche à côté des zones. | `zones.ts`, `ZoneBar`, migrations 010 et 017 |
@@ -74,7 +75,6 @@ Utile à savoir avant de chercher : ces manques sont documentés, pas oubliés.
 | Manque | Issue |
 |---|---|
 | Connexion Strava, puis Garmin et Coros — import sans dépôt de fichier | [#87](https://github.com/Brighttttttttt/optiperf-app/issues/87), découpée en [#105](https://github.com/Brighttttttttt/optiperf-app/issues/105) → [#108](https://github.com/Brighttttttttt/optiperf-app/issues/108) |
-| Doublon entre un fichier déposé et la même sortie synchronisée | [#107](https://github.com/Brighttttttttt/optiperf-app/issues/107) |
 | Plusieurs coachs par organisation | [#88](https://github.com/Brighttttttttt/optiperf-app/issues/88) |
 | Journal des changements automatique | [#61](https://github.com/Brighttttttttt/optiperf-app/issues/61), reportée |
 | Amitiés et messagerie ouverte à tous | [#63](https://github.com/Brighttttttttt/optiperf-app/issues/63), [#64](https://github.com/Brighttttttttt/optiperf-app/issues/64), reportées |
