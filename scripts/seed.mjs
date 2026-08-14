@@ -113,6 +113,16 @@ const TITLES = {
 };
 const TYPES = Object.keys(TITLES);
 
+/**
+ * Un athlète sans coach et sans la moindre séance.
+ *
+ * Il ne fait partie ni de `ATHLETES` (donc ni liaison, ni objectif, ni
+ * séance) ni des jeux de données : c'est tout son intérêt. L'app doit lui
+ * parler comme à quelqu'un d'autonome, pas comme à un compte incomplet
+ * (#138), et rien ne le vérifiait — les trois autres ont tous un coach.
+ */
+const SOLO = { email: "solo@example.com", name: "Alex Bernard" };
+
 async function main() {
   console.log("→ Création des comptes…");
   const coachId = await ensureUser("coach@example.com", "Camille Dupont", "coach");
@@ -120,14 +130,19 @@ async function main() {
   for (const a of ATHLETES) {
     athleteIds.push(await ensureUser(a.email, a.name, a.role ?? "athlete"));
   }
-  const allIds = [coachId, ...athleteIds];
+  const soloId = await ensureUser(SOLO.email, SOLO.name, "athlete");
+  const allIds = [coachId, ...athleteIds, soloId];
 
   console.log("→ Nettoyage des anciennes données de démo…");
   await admin.from("messages").delete().in("sender_id", allIds);
   await admin.from("notifications").delete().in("recipient_id", allIds);
-  await admin.from("activities").delete().in("athlete_id", athleteIds);
-  await admin.from("sessions").delete().in("athlete_id", athleteIds);
-  await admin.from("objectives").delete().in("athlete_id", athleteIds);
+  await admin.from("activities").delete().in("athlete_id", [...athleteIds, soloId]);
+  await admin.from("sessions").delete().in("athlete_id", [...athleteIds, soloId]);
+  await admin.from("objectives").delete().in("athlete_id", [...athleteIds, soloId]);
+  // Son absence de coach est la donnée : la reposer à chaque exécution, pour
+  // qu'une session de test l'ayant lié à la main ne rende pas le suivant vert
+  // à tort.
+  await admin.from("coach_athletes").delete().eq("athlete_id", soloId);
 
   console.log("→ Liaison coach ↔ athlètes…");
   for (const id of athleteIds) {
@@ -319,6 +334,7 @@ async function main() {
   console.log("\n✔ Données de démo prêtes. Comptes (mot de passe : " + PASSWORD + ")");
   console.log("   Coach   : coach@example.com");
   for (const a of ATHLETES) console.log(`   Athlète : ${a.email} (${a.name})`);
+  console.log(`   Athlète sans coach : ${SOLO.email} (${SOLO.name})`);
 }
 
 main().catch((e) => {

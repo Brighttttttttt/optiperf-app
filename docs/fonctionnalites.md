@@ -45,6 +45,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Fonctionnalité | Ce qu'elle permet | Où |
 |---|---|---|
 | Accueil | Les séances à venir, et le geste pour les déclarer faites ou manquées. | `home/AthleteHome` |
+| S'entraîner sans coach | Tout fonctionne seul : séances libres, import, courbes, zones, historique. L'app n'en fait pas un compte incomplet — l'invitation à rejoindre un coach n'apparaît sur l'accueil qu'avant la toute première séance, puis vit dans les réglages. Un athlète ne se prescrit pas de séance à venir : le carnet se remplit après coup. | `home/AthleteHome`, `LinkCoachForm` |
 | Compte rendu | RPE sur une rampe 1–10, durée réelle, commentaire. | `SessionActions`, `RpeScale` |
 | Compte rendu de musculation | Ce qui a réellement été fait, exercice par exercice. | `exercise_logs` (013), `ExerciseLogsEditor` |
 | Séance libre | Déclarer une sortie qui n'avait pas été prescrite. | `FreeSessionForm` |
