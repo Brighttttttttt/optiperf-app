@@ -753,36 +753,87 @@ export async function importActivity(
       : null;
   };
 
+  const mesures = {
+    file_name: fileName,
+    started_at: startedAt,
+    date,
+    duration_min: Math.round(duration),
+    distance_m: nombreOuNull("distance_m", 0, 1_000_000),
+    avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
+  };
+
   const { data: activite, error: erreurActivite } = await supabase
     .from("activities")
     .insert({
       athlete_id: user.id,
       source: "fichier",
       external_id: externalId,
-      file_name: fileName,
-      started_at: startedAt,
-      date,
-      duration_min: Math.round(duration),
-      distance_m: nombreOuNull("distance_m", 0, 1_000_000),
-      avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
+      ...mesures,
     })
     .select("id")
     .single();
 
+  let activiteId = activite?.id as string | undefined;
+
   if (erreurActivite) {
     // 23505 : la contrainte unique (athlete_id, source, external_id).
-    if (erreurActivite.code === "23505") {
-      return { error: "Cette séance a déjà été importée." };
+    if (erreurActivite.code !== "23505") {
+      return { error: "Impossible d'enregistrer l'activité." };
     }
-    return { error: "Impossible d'enregistrer l'activité." };
+
+    // Ce fichier a déjà été déposé. Reste à savoir si son activité mène
+    // encore quelque part : `activities.session_id` est `on delete set null`
+    // (007), donc supprimer une séance laisse derrière elle une activité que
+    // plus aucun écran ne montrait — et qui interdisait pourtant de redéposer
+    // le fichier dont elle venait (#135).
+    const { data: existante } = await supabase
+      .from("activities")
+      .select("id, session_id")
+      .eq("athlete_id", user.id)
+      .eq("source", "fichier")
+      .eq("external_id", externalId)
+      .maybeSingle<{ id: string; session_id: string | null }>();
+
+    if (!existante) {
+      // Le conflit vient d'ailleurs que d'une activité qu'on puisse relire :
+      // ne rien affirmer de faux.
+      return { error: "Impossible d'enregistrer l'activité." };
+    }
+    if (existante.session_id) {
+      return {
+        error:
+          "Ce fichier est déjà rattaché à une séance de ton historique. Ouvre-la pour la corriger, ou supprime l'activité depuis « Fichiers importés ».",
+      };
+    }
+
+    // Orpheline : on la reprend plutôt que de refuser. L'athlète sait très
+    // bien qu'il redépose le même fichier — c'est justement ce qu'il veut.
+    activiteId = existante.id;
+    const { error } = await supabase
+      .from("activities")
+      .update(mesures)
+      .eq("id", existante.id);
+    if (error) return { error: "Impossible d'enregistrer l'activité." };
   }
+
+  if (!activiteId) return { error: "Impossible d'enregistrer l'activité." };
 
   // Enrichissement visuel, pas la donnée de référence : son échec ne doit
   // pas faire perdre l'activité déjà enregistrée.
+  //
+  // Sur une activité reprise, trace et tours sont **remplacés** et non
+  // ajoutés : `activity_laps` a pour clé primaire `(activity_id, position)`,
+  // un simple insert échouerait au premier tour.
   const points = validerTrace(String(formData.get("trace") ?? ""));
+  const tours = validerTours(String(formData.get("tours") ?? ""));
+  if (erreurActivite) {
+    await supabase.from("activity_traces").delete().eq("activity_id", activiteId);
+    await supabase.from("activity_laps").delete().eq("activity_id", activiteId);
+  }
+
   if (points.length > 0) {
     await supabase.from("activity_traces").insert({
-      activity_id: activite.id,
+      activity_id: activiteId,
       athlete_id: user.id,
       t_s: points.map((p) => p.tOffsetS),
       heart_rate: points.map((p) => p.heartRate),
@@ -793,11 +844,10 @@ export async function importActivity(
 
   // Les tours, même règle : ils enrichissent l'activité sans la conditionner.
   // Un GPX n'en a jamais, et une séance sans eux reste parfaitement valide.
-  const tours = validerTours(String(formData.get("tours") ?? ""));
   if (tours.length > 0) {
     await supabase.from("activity_laps").insert(
       tours.map((t) => ({
-        activity_id: activite.id,
+        activity_id: activiteId,
         athlete_id: user.id,
         position: t.position,
         duration_s: t.durationS,
@@ -864,7 +914,45 @@ export async function importActivity(
   await supabase
     .from("activities")
     .update({ session_id: seanceLiee })
-    .eq("id", activite.id);
+    .eq("id", activiteId);
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * Supprime une activité importée.
+ *
+ * `activities_delete` (migration 007) l'autorise à l'athlète seul depuis le
+ * début ; il n'y avait simplement aucune voie pour l'exercer. La trace et les
+ * tours tombent en cascade avec elle.
+ *
+ * La **séance reste** : elle porte le compte rendu de l'athlète, RPE et
+ * ressenti compris, qu'il a peut-être complété à la main depuis. Effacer le
+ * fichier déposé n'efface pas la séance qu'il documentait — l'inverse de la
+ * règle qui laisse survivre l'activité quand la séance disparaît (007), et
+ * pour la même raison : les deux ne se déduisent pas l'une de l'autre.
+ */
+export async function deleteActivity(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+  const id = String(formData.get("activity_id") ?? "");
+  if (!id) return { error: "Activité introuvable." };
+
+  // `count` plutôt que l'absence d'erreur : la RLS filtre en silence, un refus
+  // ressemblerait trait pour trait à un succès (même leçon qu'en #133).
+  const { error, count } = await supabase
+    .from("activities")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .eq("athlete_id", user.id);
+
+  if (error) return { error: "Impossible de supprimer cette activité." };
+  if (!count) {
+    return { error: "Cette activité n'existe plus, ou ne t'appartient pas." };
+  }
 
   revalidatePath("/", "layout");
   return { ok: true };

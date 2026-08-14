@@ -202,7 +202,9 @@ test("un fichier FIT est importable de bout en bout", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("le même fichier déposé deux fois est refusé", async ({ page }) => {
+test("le même fichier déposé deux fois est refusé, en disant où il est", async ({
+  page,
+}) => {
   await seConnecter(page, "sofia@example.com");
 
   // Un fichier propre à ce test : son empreinte ne doit croiser aucune autre,
@@ -225,7 +227,100 @@ test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   await page.getByRole("radio", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
 
-  await expect(page.getByText("Cette séance a déjà été importée.")).toBeVisible();
+  // Le relevé est toujours rattaché à sa séance : c'est un vrai doublon, et
+  // le message doit dire où le retrouver plutôt que d'annoncer un échec sec.
+  await expect(page.getByText(/déjà rattaché à une séance/)).toBeVisible();
+});
+
+/**
+ * Régression #135 — le fichier fantôme.
+ *
+ * `activities.session_id` est `on delete set null` (007) : supprimer une
+ * séance laissait derrière elle une activité qu'aucun écran ne montrait, et
+ * qui interdisait pourtant de redéposer le fichier dont elle venait. Le
+ * symptôme était trompeur au possible : « déjà importée » alors que l'athlète
+ * venait de tout effacer.
+ */
+test("redéposer un fichier dont la séance a été supprimée fonctionne", async ({
+  page,
+}) => {
+  await seConnecter(page, "sofia@example.com");
+  const contenu = gpxDuJour(crypto.randomUUID(), 13);
+
+  await deposer(page, contenu, "fantome.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance fantôme");
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  // Supprimer la séance depuis son écran, comme le ferait l'athlète.
+  await page.getByRole("link", { name: "Historique" }).click();
+  await page.getByText("Séance fantôme").click();
+  await page.getByRole("button", { name: "Supprimer la séance" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+
+  // Vérifié depuis l'historique plutôt que sur place : la page de la séance
+  // se vide par une redirection déclenchée au re-rendu, dont on ne veut pas
+  // faire dépendre l'assertion.
+  await page.goto("/history");
+  await expect(page.getByText("Séance fantôme")).toBeHidden();
+
+  // L'activité a survécu, sans séance : elle se voit désormais, et se dit.
+  await page.goto("/activites");
+  await expect(page.getByText("Non rattaché")).toBeVisible();
+
+  // Et le fichier redevient déposable : l'activité orpheline est reprise.
+  await page.goto("/");
+  await deposer(page, contenu, "fantome.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance retrouvée");
+  await page.getByRole("radio", { name: "5", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+  await expect(page.getByText(/déjà rattaché|déjà été importée/)).toBeHidden();
+
+  // Reprise et non duplication : une seule activité pour ce fichier, et elle
+  // pointe maintenant vers la nouvelle séance.
+  await page.goto("/activites");
+  await expect(page.getByRole("link", { name: "Séance retrouvée" })).toBeVisible();
+  await expect(page.getByText("Non rattaché")).toBeHidden();
+});
+
+test("l'athlète supprime un relevé, et la séance qu'il documentait reste", async ({
+  page,
+}) => {
+  await seConnecter(page, "sofia@example.com");
+  const contenu = gpxDuJour(crypto.randomUUID(), 21);
+
+  await deposer(page, contenu, "a-effacer.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance conservée");
+  await page.getByRole("radio", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  // Ciblé par `listitem` et non par un `div` filtré sur son texte : ce
+  // dernier motif attrape une boîte trop étroite et bloque le clic — panne
+  // déterministe déjà rencontrée, pas un test instable.
+  await page.goto("/activites");
+  const ligne = page.getByRole("listitem").filter({ hasText: "a-effacer.gpx" });
+  await ligne.getByRole("button", { name: "Supprimer" }).click();
+  await ligne.getByRole("button", { name: "Supprimer", exact: true }).click();
+
+  await expect(page.getByText("a-effacer.gpx")).toBeHidden();
+
+  // Le compte rendu appartient à l'athlète : effacer le fichier déposé
+  // n'efface pas la séance qu'il documentait.
+  await page.goto("/history");
+  await expect(page.getByText("Séance conservée")).toBeVisible();
 });
 
 test("un fichier illisible est refusé avant tout enregistrement", async ({ page }) => {

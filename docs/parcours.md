@@ -87,10 +87,13 @@ flowchart TD
         AP["/planning"]
         AT["/history"]
         AS["/seances/[id]"]
+        AC["/activites"]
 
         AH --> AS
         AT --> AS
         AS --> AT
+        AT --> AC
+        AC --> AS
     end
 
     subgraph commun["Partagé"]
@@ -127,7 +130,8 @@ en gardant l'onglet courant.
 | `/athletes/[id]/messagerie` | Coach | Fil de discussion avec cet athlète | Onglets, carte athlète | — |
 | `/planifier` | Coach | Prescrire : athlètes × dates en une fois, modèles, blocs, exercices | Tableau de bord, fiche, planning | `/` |
 | `/planning` | Athlète | Sa propre semaine, en lecture | Navigation | — |
-| `/history` | Athlète | Son historique et ses courbes | Navigation | `/seances/[id]` |
+| `/history` | Athlète | Son historique et ses courbes | Navigation | `/seances/[id]`, `/activites` |
+| `/activites` | Athlète | Les fichiers déposés **pour eux-mêmes** : les relire, les supprimer, retrouver ceux qu'aucune séance ne porte plus | `/history` | `/seances/[id]` |
 | `/seances/[id]` | Les deux | Détail d'une séance. **Formulaire de prescription pour le coach**, compte rendu pour l'athlète | Listes, planning, historique | `/history` ou `/athletes/[id]` selon le propriétaire |
 | `/messages` | Les deux | Liste des fils | Navigation | `/messages/[id]` |
 | `/messages/[id]` | Les deux | Fil de discussion, temps réel | `/messages` | — |
