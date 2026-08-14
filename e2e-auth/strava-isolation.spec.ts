@@ -118,14 +118,16 @@ test("les réglages du coach ne parlent pas de Strava", async ({ page }) => {
   await seConnecter(page, "coach@example.com");
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Réglages" })).toBeVisible();
-  await expect(page.getByText("Strava")).toBeHidden();
+  // Exact : le mot « Strava » revient dans les phrases de la carte, seul le
+  // titre dit qu'elle est là.
+  await expect(page.getByText("Strava", { exact: true })).toBeHidden();
 });
 
 test("l'athlète voit l'entrée Strava dans ses réglages", async ({ page }) => {
   await seConnecter(page, "lea@example.com");
   await page.goto("/settings");
 
-  await expect(page.getByText("Strava")).toBeVisible();
+  await expect(page.getByText("Strava", { exact: true })).toBeVisible();
   // En intégration continue, les identifiants d'API ne sont pas configurés :
   // l'app le dit au lieu d'offrir un bouton qui mènerait à une erreur.
   await expect(
