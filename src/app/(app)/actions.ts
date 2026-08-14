@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
-import { validerTrace } from "@/lib/activites";
+import { validerTours, validerTrace } from "@/lib/activites";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
@@ -733,6 +733,23 @@ export async function importActivity(
       pace_sec_per_km: points.map((p) => p.paceSecPerKm),
       altitude_m: points.map((p) => p.altitudeM),
     });
+  }
+
+  // Les tours, même règle : ils enrichissent l'activité sans la conditionner.
+  // Un GPX n'en a jamais, et une séance sans eux reste parfaitement valide.
+  const tours = validerTours(String(formData.get("tours") ?? ""));
+  if (tours.length > 0) {
+    await supabase.from("activity_laps").insert(
+      tours.map((t) => ({
+        activity_id: activite.id,
+        athlete_id: user.id,
+        position: t.position,
+        duration_s: t.durationS,
+        distance_m: t.distanceM,
+        avg_heart_rate: t.avgHeartRate,
+        avg_cadence: t.avgCadence,
+      }))
+    );
   }
 
   // Rattachement : soit une séance existante que l'athlète a désignée, soit

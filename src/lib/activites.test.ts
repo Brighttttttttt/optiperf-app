@@ -19,6 +19,8 @@ import {
   MAX_POINTS_TRACE,
   TAILLE_MAX_OCTETS,
   validerTrace,
+  validerTours,
+  MAX_TOURS,
   type LectureActivite,
 } from "./activites";
 
@@ -508,5 +510,99 @@ describe("choix de l'analyseur", () => {
   it("se rabat sur l'extension quand la racine est absente", () => {
     const sansRacine = exemple("strava-footing.gpx").replace(/<\/?gpx[^>]*>/g, "");
     expect(reussite(lireFichierActivite(sansRacine, "seance.gpx")).durationMin).toBe(34);
+  });
+});
+
+describe("tours", () => {
+  it("garde les tours d'un TCX réel, dans l'ordre", () => {
+    // 11 `<Lap>` dans le fichier — vérifié en les comptant à la main.
+    const activite = reussite(
+      lireFichierActivite(exemple("LeCoteauCourse20260529210037.tcx"), "seance.tcx")
+    );
+    expect(activite.tours).toHaveLength(11);
+    expect(activite.tours.map((t) => t.position)).toEqual([...Array(11).keys()]);
+    expect(activite.tours.every((t) => t.durationS > 0)).toBe(true);
+  });
+
+  it("ne prend pas la cadence des points pour celle du tour", () => {
+    // Ce fichier porte 2202 balises `<Cadence>` — une par point de trace.
+    // Sans retirer les blocs `<Track>` avant lecture, le premier point
+    // passerait pour la cadence du tour entier.
+    const activite = reussite(
+      lireFichierActivite(exemple("LeCoteauCourse20260529210037.tcx"), "seance.tcx")
+    );
+    const cadences = activite.tours.map((t) => t.avgCadence);
+    expect(cadences.every((c) => c === null || (c >= 0 && c <= 300))).toBe(true);
+  });
+
+  it("additionne les tours pour retrouver la durée totale", () => {
+    // Cohérence interne : la somme des tours ne peut pas s'éloigner du total
+    // déclaré, sinon c'est qu'on en a raté ou compté deux fois.
+    const activite = reussite(
+      lireFichierActivite(exemple("LaTour-en-JarezTrail20260516110831.tcx"), "t.tcx")
+    );
+    const somme = activite.tours.reduce((s, t) => s + t.durationS, 0);
+    expect(Math.abs(somme / 60 - activite.durationMin)).toBeLessThan(1);
+  });
+
+  it("rend un tableau vide pour un GPX, qui n'a pas de tours", () => {
+    const activite = reussite(
+      lireFichierActivite(exemple("strava-footing.gpx"), "footing.gpx")
+    );
+    expect(activite.tours).toEqual([]);
+  });
+
+  it("garde les tours d'un FIT", () => {
+    const activite = reussite(
+      lireFichierActivite(fitDeSeance({ secondes: 900, distanceM: 3000, avgHeartRate: 140 }))
+    );
+    expect(activite.tours.length).toBeGreaterThan(0);
+    expect(activite.tours[0].position).toBe(0);
+    expect(activite.tours[0].durationS).toBeGreaterThan(0);
+  });
+});
+
+describe("validerTours", () => {
+  const tour = (durationS: number) => ({
+    durationS,
+    distanceM: 1000,
+    avgHeartRate: 160,
+    avgCadence: 170,
+  });
+
+  it("accepte des tours bien formés et les renumérote", () => {
+    const tours = validerTours(JSON.stringify([tour(300), tour(90), tour(300)]));
+    expect(tours.map((t) => t.position)).toEqual([0, 1, 2]);
+    expect(tours[1].durationS).toBe(90);
+  });
+
+  it("écarte un tour sans durée sans faire échouer les autres", () => {
+    // Une montre écrit parfois un tour de zéro seconde à l'arrêt : le garder
+    // le ferait compter comme une répétition.
+    const tours = validerTours(
+      JSON.stringify([tour(300), { ...tour(0) }, { durationS: "beaucoup" }, tour(280)])
+    );
+    expect(tours).toHaveLength(2);
+    expect(tours.map((t) => t.position)).toEqual([0, 1]);
+  });
+
+  it("écarte une valeur hors bornes sans écarter le tour", () => {
+    const tours = validerTours(
+      JSON.stringify([{ durationS: 300, distanceM: 1000, avgHeartRate: 900, avgCadence: -5 }])
+    );
+    expect(tours[0].avgHeartRate).toBeNull();
+    expect(tours[0].avgCadence).toBeNull();
+    expect(tours[0].durationS).toBe(300);
+  });
+
+  it("borne le nombre de tours", () => {
+    const trop = Array.from({ length: MAX_TOURS + 50 }, () => tour(60));
+    expect(validerTours(JSON.stringify(trop))).toHaveLength(MAX_TOURS);
+  });
+
+  it("ne rend rien d'une saisie qui n'est pas un tableau", () => {
+    expect(validerTours("")).toEqual([]);
+    expect(validerTours("{oups")).toEqual([]);
+    expect(validerTours('{"tours":[]}')).toEqual([]);
   });
 });
