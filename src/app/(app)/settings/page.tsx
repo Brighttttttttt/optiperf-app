@@ -10,13 +10,31 @@ import { HeartRateRefsForm } from "@/components/HeartRateRefsForm";
 import { VmaForm } from "@/components/VmaForm";
 import { RecordsForm } from "@/components/RecordsForm";
 import { DeleteAccount } from "@/components/DeleteAccount";
+import { StravaConnection } from "@/components/StravaConnection";
+import { stravaConfigure } from "@/lib/strava";
 import { TemplateList } from "@/components/TemplateList";
 import type { PersonalRecord, SessionTemplate } from "@/lib/types";
 import { signOut } from "@/app/(auth)/actions";
 import { initials } from "@/lib/initials";
 import type { Profile } from "@/lib/types";
 
-export default async function SettingsPage() {
+/** Ce que dit la page au retour d'une autorisation Strava. */
+const RETOURS_STRAVA: Record<string, string> = {
+  ok: "Compte Strava connecté.",
+  refuse: "Autorisation refusée : rien n'a été relié.",
+  portee:
+    "Il manque l'autorisation de lire tes activités : la connexion ne servirait à rien. Réessaie en laissant la case cochée.",
+  etat: "La demande a expiré ou n'a pas pu être vérifiée. Recommence depuis cette page.",
+  echec: "Strava n'a pas répondu comme prévu. Réessaie dans un moment.",
+  indisponible: "La connexion Strava n'est pas configurée sur cet environnement.",
+};
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ strava?: string }>;
+}) {
+  const { strava } = await searchParams;
   const supabase = await createClient();
   const user = await getSessionUser();
   const profile = await getSessionProfile();
@@ -39,6 +57,8 @@ export default async function SettingsPage() {
 
   let coach: Profile | null = null;
   let records: PersonalRecord[] = [];
+  // La date suffit : les jetons sont chiffrés et n'ont rien à faire ici.
+  let connexionStrava: { connected_at: string } | null = null;
   if (mode === "athlete") {
     const { data: link } = await supabase
       .from("coach_athletes")
@@ -59,6 +79,14 @@ export default async function SettingsPage() {
       .select("*")
       .eq("athlete_id", user.id);
     records = (recordsData ?? []) as PersonalRecord[];
+
+    const { data: connexion } = await supabase
+      .from("provider_connections")
+      .select("connected_at")
+      .eq("athlete_id", user.id)
+      .eq("provider", "strava")
+      .maybeSingle<{ connected_at: string }>();
+    connexionStrava = connexion ?? null;
   }
 
   return (
@@ -124,6 +152,17 @@ export default async function SettingsPage() {
             <div className="mt-3">
               <VmaForm vmaKmh={profile.vma_kmh} />
             </div>
+          </Card>
+        )}
+
+        {mode === "athlete" && (
+          <Card className="p-4">
+            <StravaConnection
+              connectee={Boolean(connexionStrava)}
+              depuis={connexionStrava?.connected_at ?? null}
+              indisponible={!stravaConfigure()}
+              message={strava ? (RETOURS_STRAVA[strava] ?? null) : null}
+            />
           </Card>
         )}
 
