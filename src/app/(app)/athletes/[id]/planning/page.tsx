@@ -6,7 +6,10 @@ import { WeekPlanner } from "@/components/WeekPlanner";
 import { IconPlus } from "@/components/Icons";
 import { btnPrimary } from "@/lib/styles";
 import { addDays, toISODate } from "@/lib/dates";
-import { chargerDetailsSeances } from "@/lib/session-details";
+import {
+  chargerAnalysesSeances,
+  chargerDetailsSeances,
+} from "@/lib/session-details";
 import type { Profile, TrainingSession } from "@/lib/types";
 
 export default async function AthletePlanningPage({
@@ -41,6 +44,13 @@ export default async function AthletePlanningPage({
     sessions.map((s) => s.id)
   );
 
+  // La structure lue dans les tours, pour toute la fenêtre : le panneau du
+  // jour l'affiche sans ouvrir la séance, comme le reste de son contenu.
+  const analyses = await chargerAnalysesSeances(
+    supabase,
+    sessions.map((s) => s.id)
+  );
+
   return (
     <div className="px-5 space-y-3">
       <div className="flex items-center justify-end">
@@ -53,7 +63,12 @@ export default async function AthletePlanningPage({
         </Link>
       </div>
       <Card className="p-3">
-        <WeekPlanner athleteId={id} sessions={sessions} {...details} />
+        <WeekPlanner
+          athleteId={id}
+          sessions={sessions}
+          {...details}
+          analysesBySession={analyses}
+        />
       </Card>
       {upcoming.length === 0 && (
         <p className="text-center text-[13px] text-ink-soft">

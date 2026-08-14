@@ -4,7 +4,10 @@ import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader } from "@/components/ui";
 import { WeekPlanner } from "@/components/WeekPlanner";
 import { addDays, toISODate } from "@/lib/dates";
-import { chargerDetailsSeances } from "@/lib/session-details";
+import {
+  chargerAnalysesSeances,
+  chargerDetailsSeances,
+} from "@/lib/session-details";
 import { pluralize } from "@/lib/planning";
 import type { TrainingSession } from "@/lib/types";
 
@@ -40,6 +43,13 @@ export default async function PlanningPage() {
     sessions.map((s) => s.id)
   );
 
+  // La structure lue dans les tours, pour toute la fenêtre : le panneau du
+  // jour l'affiche sans ouvrir la séance, comme le reste de son contenu.
+  const analyses = await chargerAnalysesSeances(
+    supabase,
+    sessions.map((s) => s.id)
+  );
+
   const semaine = sessions.filter(
     (s) => s.date >= toISODate(addDays(now, -((now.getDay() + 6) % 7)))
   );
@@ -62,6 +72,7 @@ export default async function PlanningPage() {
             sessions={sessions}
             canPlan={false}
             {...details}
+            analysesBySession={analyses}
           />
         </Card>
       </div>

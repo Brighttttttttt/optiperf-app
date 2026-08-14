@@ -24,6 +24,7 @@ import {
 } from "@/lib/planning";
 import { moveSession } from "@/app/(app)/actions";
 import { rpeBand, RPE_BG } from "@/lib/rpe";
+import type { AnalyseSeance } from "@/lib/analyse-seance";
 import {
   sessionTypeLabel,
   type Exercise,
@@ -68,6 +69,7 @@ export function WeekPlanner({
   blocksBySession = {},
   exercisesBySession = {},
   logsBySession = {},
+  analysesBySession = {},
   canPlan = true,
 }: {
   athleteId: string;
@@ -75,6 +77,8 @@ export function WeekPlanner({
   blocksBySession?: Record<string, WorkoutBlock[]>;
   exercisesBySession?: Record<string, Exercise[]>;
   logsBySession?: Record<string, ExerciseLog[]>;
+  /** Absente pour une séance sans tours (GPX, saisie à la main, à venir). */
+  analysesBySession?: Record<string, AnalyseSeance>;
   canPlan?: boolean;
 }) {
   const today = useMemo(() => new Date(), []);
@@ -369,6 +373,20 @@ export function WeekPlanner({
                     <p className="mt-1.5 text-[13px] text-ink-soft whitespace-pre-line">
                       {s.description}
                     </p>
+                  )}
+
+                  {/* Ce que la montre a mesuré, avant d'ouvrir la séance. */}
+                  {analysesBySession[s.id] && (
+                    <div className="mt-1.5 border-t border-line pt-1.5">
+                      {analysesBySession[s.id].structure && (
+                        <p className="text-[13px] font-semibold text-pine">
+                          {analysesBySession[s.id].structure}
+                        </p>
+                      )}
+                      <p className="text-[13px] text-ink-soft">
+                        {analysesBySession[s.id].resume}
+                      </p>
+                    </div>
                   )}
 
                   {s.athlete_comment && (
