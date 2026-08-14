@@ -70,7 +70,9 @@ async function seConnecter(page: Page, email: string) {
 }
 
 async function remonter(page: Page, mois: number) {
-  const precedent = page.getByRole("button", { name: "Mois précédent" }).first();
+  const precedent = page
+    .getByRole("group", { name: "Mois affiché" })
+    .getByRole("button", { name: "Mois précédent" });
   for (let i = 0; i < mois; i++) await precedent.click();
 }
 

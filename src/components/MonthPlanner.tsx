@@ -227,7 +227,15 @@ export function MonthPlanner({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-2">
+      {/* Un groupe nommé : le libellé du mois se retrouve tel quel ailleurs
+          dans l'app (les titres de l'historique sont eux aussi « août 2026 »),
+          et sans repère les tests comme les lecteurs d'écran confondent les
+          deux. */}
+      <div
+        role="group"
+        aria-label="Mois affiché"
+        className="flex items-center justify-between gap-2 mb-2"
+      >
         <button
           type="button"
           aria-label="Mois précédent"

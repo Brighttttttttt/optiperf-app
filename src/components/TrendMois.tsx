@@ -80,7 +80,13 @@ export function TrendMois({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-3">
+      {/* Nommé pour la même raison que la grille : « août 2026 » est aussi le
+          titre des groupes de l'historique, juste en dessous. */}
+      <div
+        role="group"
+        aria-label="Mois des courbes"
+        className="flex items-center justify-between gap-2 mb-3"
+      >
         <button
           type="button"
           aria-label="Mois précédent"

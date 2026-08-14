@@ -43,7 +43,8 @@ test("le planning affiche un mois nommé, en lignes de sept jours", async ({
   await seConnecter(page, "lea@example.com");
   await page.goto("/planning");
 
-  await expect(page.getByText(libelleMoisIlYA(0))).toBeVisible();
+  const barre = page.getByRole("group", { name: "Mois affiché" });
+  await expect(barre.getByText(libelleMoisIlYA(0))).toBeVisible();
 
   // Une grille mensuelle : entre 28 et 42 cellules de jour, toujours un
   // multiple de sept. Une semaine seule en donnerait exactement 7.
@@ -57,14 +58,16 @@ test("les courbes se lisent mois par mois", async ({ page }) => {
   await seConnecter(page, "lea@example.com");
   await page.goto("/history");
 
-  // Le mois courant nomme la vue, et la charge reste hebdomadaire.
-  await expect(page.getByText(libelleMoisIlYA(0))).toBeVisible();
+  // Le mois courant nomme la vue, et la charge reste hebdomadaire. Ciblé par
+  // le groupe : l'historique juste en dessous titre lui aussi ses mois.
+  const barre = page.getByRole("group", { name: "Mois des courbes" });
+  await expect(barre.getByText(libelleMoisIlYA(0))).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Charge par semaine" })
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Mois précédent" }).first().click();
-  await expect(page.getByText(libelleMoisIlYA(1))).toBeVisible();
+  await barre.getByRole("button", { name: "Mois précédent" }).click();
+  await expect(barre.getByText(libelleMoisIlYA(1))).toBeVisible();
 
   // Le tableau de chiffres reste accessible : aucune valeur ne doit vivre
   // uniquement dans le graphique.
