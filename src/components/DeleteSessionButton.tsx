@@ -17,6 +17,11 @@ import { useState } from "react";
  *
  * Le texte dit **ce qui part avec** : c'est la seule chose qu'on ne peut pas
  * découvrir après coup.
+ *
+ * Discret mais pleine largeur, comme la suppression de compte : une action
+ * définitive ne se propose pas en bouton plein qu'on heurte du pouce, mais
+ * elle doit se trouver quand on la cherche. C'est le placement — un pied de
+ * page à part — qui la rend trouvable, pas la couleur (#137).
  */
 export function DeleteSessionButton({
   sessionId,
@@ -36,7 +41,10 @@ export function DeleteSessionButton({
       <button
         type="button"
         onClick={() => setConfirme(true)}
-        className="text-[13px] font-semibold text-ink-soft transition-colors hover:text-rpe-max"
+        // `py-3` sur une pleine largeur : au moins 44 px de haut, la cible
+        // minimale au pouce — le geste vit en bas d'une page qu'on a fait
+        // défiler, il ne doit pas se rater.
+        className="w-full rounded-xl px-4 py-3 text-[14px] font-semibold text-ink-soft transition-colors hover:text-rpe-max"
       >
         {libelle}
       </button>

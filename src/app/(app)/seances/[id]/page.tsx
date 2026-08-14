@@ -226,15 +226,6 @@ export default async function SessionPage({
             </Card>
           )}
 
-          {profile && peutSupprimer(session, profile.id) && (
-            <div className="pt-1">
-              <DeleteSessionButton
-                sessionId={session.id}
-                aDuContenu={blocks.length > 0 || exercises.length > 0}
-              />
-            </div>
-          )}
-
           {trace && (
             <Card className="p-4 space-y-4">
               {athlete && methodeCalculable(athlete.zone_method, {
@@ -254,6 +245,18 @@ export default async function SessionPage({
               <ActivityTraceChart trace={trace} />
             </Card>
           )}
+
+          {/* En pied de page, dans sa propre zone : une action définitive ne
+              se glisse pas entre deux blocs de données, où elle se lit comme
+              une légende et ne se trouve pas quand on la cherche (#137). */}
+          {profile && peutSupprimer(session, profile.id) && (
+            <div className="mt-6 border-t border-line pt-4">
+              <DeleteSessionButton
+                sessionId={session.id}
+                aDuContenu={blocks.length > 0 || exercises.length > 0}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -268,8 +271,9 @@ export default async function SessionPage({
       />
       <div className="px-5">
         <EditSessionForm session={session} blocks={blocks} exercises={exercises} />
+        {/* Même zone qu'au-dessus : sous le formulaire, détachée de lui. */}
         {profile && peutSupprimer(session, profile.id) && (
-          <div className="mt-4">
+          <div className="mt-6 border-t border-line pt-4">
             <DeleteSessionButton
               sessionId={session.id}
               aDuContenu={blocks.length > 0 || exercises.length > 0}
