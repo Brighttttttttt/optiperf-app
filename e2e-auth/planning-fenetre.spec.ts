@@ -3,47 +3,35 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 /**
  * Le planning au-delà de sa fenêtre initiale (#141).
  *
- * La vue semaine charge ±8 semaines d'un coup pour naviguer sans attendre le
- * serveur. Les flèches, elles, n'étaient bornées par rien : passé la fenêtre,
+ * La vue charge douze semaines de part et d'autre pour naviguer sans attendre
+ * le serveur. Les flèches, elles, ne sont bornées par rien : passé la fenêtre,
  * chaque jour affichait « Rien de prévu ce jour-là », strictement
  * indistinguable d'un jour réellement libre. Une séance importée d'une sortie
  * ancienne n'apparaissait donc nulle part dans le planning.
  *
- * Douze semaines en arrière : franchement au-delà des huit chargées, et sur
- * un multiple de sept pour que le nombre de clics soit déterministe — le jour
- * ouvert suit la semaine, il tombe donc pile sur la séance.
+ * Quatre mois en arrière : franchement au-delà des douze semaines chargées,
+ * quel que soit le jour du mois où le test s'exécute.
+ *
+ * Les dates sont calculées **en heure de Paris**, comme l'app (#146) : le
+ * fuseau des runners est UTC, et un calcul posé près de minuit viserait un
+ * autre jour que celui affiché.
  */
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const CLE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const MOT_DE_PASSE = "optiperf-demo";
-const SEMAINES = 12;
+const MOIS = 4;
 
-/**
- * La date d'aujourd'hui **telle que l'app la voit**, c'est-à-dire à Paris.
- *
- * `src/lib/dates.ts` force Europe/Paris partout, parce que Vercel tourne en
- * UTC. Dater le test avec le fuseau de la machine qui l'exécute — UTC sur les
- * runners — décale d'un jour entre 22 h et minuit, et donc d'un jour le jour
- * ouvert par le panneau : le test cherchait sa séance la veille de l'endroit
- * où l'app l'affichait (#146). Déterministe, pas instable : il n'y avait rien
- * à réessayer.
- *
- * `fr-CA` est le raccourci habituel vers un format `AAAA-MM-JJ`.
- */
 function aujourdhuiAParis(): string {
   return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(
     new Date()
   );
 }
 
-function ilYADouzeSemaines() {
-  const [an, mois, jour] = aujourdhuiAParis().split("-").map(Number);
-  // Midi UTC : assez loin des deux bascules de minuit pour qu'aucun décalage
-  // horaire ne change le quantième pendant le calcul.
-  const d = new Date(Date.UTC(an, mois - 1, jour, 12));
-  d.setUTCDate(d.getUTCDate() - SEMAINES * 7);
-  return d.toISOString().slice(0, 10);
+/** Le 15 du mois, `n` mois en arrière — jamais de bord de mois à négocier. */
+function leQuinzeIlYA(n: number): string {
+  const [an, mois] = aujourdhuiAParis().split("-").map(Number);
+  return new Date(Date.UTC(an, mois - 1 - n, 15, 12)).toISOString().slice(0, 10);
 }
 
 async function ouvrirSession(request: APIRequestContext, email: string) {
@@ -56,6 +44,23 @@ async function ouvrirSession(request: APIRequestContext, email: string) {
   return { jeton: access_token as string, id: user.id as string };
 }
 
+async function creerSeance(
+  request: APIRequestContext,
+  jeton: string,
+  champs: Record<string, unknown>
+) {
+  const reponse = await request.post(`${URL}/rest/v1/sessions`, {
+    headers: {
+      apikey: CLE,
+      Authorization: `Bearer ${jeton}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    data: { date: leQuinzeIlYA(MOIS), type: "endurance", ...champs },
+  });
+  expect(reponse.ok(), await reponse.text()).toBeTruthy();
+}
+
 async function seConnecter(page: Page, email: string) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
@@ -64,9 +69,9 @@ async function seConnecter(page: Page, email: string) {
   await expect(page).toHaveURL(/\/$|\/\?/);
 }
 
-async function remonter(page: Page, semaines: number) {
-  const precedente = page.getByRole("button", { name: "Semaine précédente" });
-  for (let i = 0; i < semaines; i++) await precedente.click();
+async function remonter(page: Page, mois: number) {
+  const precedent = page.getByRole("button", { name: "Mois précédent" }).first();
+  for (let i = 0; i < mois; i++) await precedent.click();
 }
 
 test("une séance plus ancienne que la fenêtre finit par s'afficher", async ({
@@ -75,36 +80,22 @@ test("une séance plus ancienne que la fenêtre finit par s'afficher", async ({
 }) => {
   const lea = await ouvrirSession(request, "lea@example.com");
   const titre = `Fenêtre e2e ${crypto.randomUUID().slice(0, 8)}`;
-
-  // Une séance libre, comme celle que crée l'import d'un fichier ancien.
-  const creation = await request.post(`${URL}/rest/v1/sessions`, {
-    headers: {
-      apikey: CLE,
-      Authorization: `Bearer ${lea.jeton}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    data: {
-      athlete_id: lea.id,
-      coach_id: null,
-      date: ilYADouzeSemaines(),
-      title: titre,
-      type: "endurance",
-      status: "completed",
-      rpe: 5,
-      duration_actual_min: 50,
-    },
+  await creerSeance(request, lea.jeton, {
+    athlete_id: lea.id,
+    coach_id: null,
+    title: titre,
+    status: "completed",
+    rpe: 5,
+    duration_actual_min: 50,
   });
-  expect(creation.ok(), await creation.text()).toBeTruthy();
 
   await seConnecter(page, "lea@example.com");
   await page.goto("/planning");
-  await expect(page.getByText("Cette semaine")).toBeVisible();
+  await remonter(page, MOIS);
 
-  await remonter(page, SEMAINES);
-
-  // Le jour ouvert a suivi les douze semaines : c'est celui de la séance.
+  // Le mois s'ouvre sur son premier jour : c'est le 15 qu'il faut demander.
   // Sans le chargement à la demande, on lirait ici « Rien de prévu ».
+  await page.locator(`[data-jour="${leQuinzeIlYA(MOIS)}"]`).click();
   await expect(page.getByText(titre)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Rien de prévu ce jour-là.")).toBeHidden();
 });
@@ -113,29 +104,16 @@ test("le coach voit lui aussi au-delà de la fenêtre", async ({ page, request }
   const coach = await ouvrirSession(request, "coach@example.com");
   const lea = await ouvrirSession(request, "lea@example.com");
   const titre = `Fenêtre coach e2e ${crypto.randomUUID().slice(0, 8)}`;
-
-  const creation = await request.post(`${URL}/rest/v1/sessions`, {
-    headers: {
-      apikey: CLE,
-      Authorization: `Bearer ${coach.jeton}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    data: {
-      athlete_id: lea.id,
-      coach_id: coach.id,
-      date: ilYADouzeSemaines(),
-      title: titre,
-      type: "endurance",
-    },
+  await creerSeance(request, coach.jeton, {
+    athlete_id: lea.id,
+    coach_id: coach.id,
+    title: titre,
   });
-  expect(creation.ok(), await creation.text()).toBeTruthy();
 
   await seConnecter(page, "coach@example.com");
   await page.goto(`/athletes/${lea.id}/planning`);
-  await expect(page.getByText("Cette semaine")).toBeVisible();
+  await remonter(page, MOIS);
 
-  await remonter(page, SEMAINES);
-
+  await page.locator(`[data-jour="${leQuinzeIlYA(MOIS)}"]`).click();
   await expect(page.getByText(titre)).toBeVisible({ timeout: 15_000 });
 });

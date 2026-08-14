@@ -5,12 +5,15 @@ import type { SessionStatus } from "./types";
 export const MAX_BATCH_SESSIONS = 120;
 
 /**
- * Demi-largeur de la fenêtre chargée d'emblée par la vue semaine, en jours.
+ * Demi-largeur de la fenêtre chargée d'emblée par la vue planning, en jours.
  *
- * Huit semaines de part et d'autre : assez pour que la navigation ordinaire
- * n'attende jamais le serveur, ce qui est tout l'intérêt de la vue.
+ * Douze semaines de part et d'autre, et non huit : depuis que la vue affiche
+ * un **mois** entier (#143), deux coups de flèche suffisaient à sortir des
+ * huit semaines, si bien que la navigation ordinaire attendait le serveur
+ * presque à chaque pas — l'inverse de ce que la fenêtre existe pour éviter.
+ * Douze semaines couvrent le mois affiché et les deux de part et d'autre.
  */
-export const FENETRE_PLANNING_JOURS = 56;
+export const FENETRE_PLANNING_JOURS = 84;
 
 /** Période couverte par les données déjà chargées. */
 export type FenetreDates = { debut: string; fin: string };
@@ -26,22 +29,24 @@ export function fenetreAutour(
 }
 
 /**
- * Ce qu'il manque pour afficher la semaine du `lundi`, ou `null` si elle est
+ * Ce qu'il manque pour afficher la période demandée, ou `null` si elle est
  * déjà couverte.
  *
  * Sans cela, la vue affirmait qu'un jour était vide alors qu'elle n'avait
  * simplement jamais demandé ses séances — indistinguable d'un jour libre
  * (#141). Le manque est rendu **par blocs d'une fenêtre entière** plutôt que
- * semaine par semaine : qui remonte de deux mois continue généralement, et
- * sept requêtes valent mieux qu'une seule un peu plus large.
+ * période par période : qui remonte de deux mois continue généralement, et
+ * plusieurs requêtes valent moins qu'une seule un peu plus large.
+ *
+ * La période est donnée en dates et non en semaine : depuis #143 la vue
+ * affiche un mois, dont la grille déborde des deux côtés.
  */
 export function fenetreManquante(
   fenetre: FenetreDates,
-  monday: Date,
+  periode: FenetreDates,
   jours = FENETRE_PLANNING_JOURS
 ): FenetreDates | null {
-  const debutSemaine = toISODate(monday);
-  const finSemaine = toISODate(addDays(monday, 6));
+  const { debut: debutSemaine, fin: finSemaine } = periode;
 
   if (debutSemaine < fenetre.debut) {
     return {
@@ -104,53 +109,6 @@ export function planningCalendar(weeks = 3, now = new Date()): CalendarDay[] {
     });
   }
   return days;
-}
-
-/** Lundi de la semaine contenant `date`. */
-export function startOfWeek(date: Date): Date {
-  return addDays(date, -((date.getDay() + 6) % 7));
-}
-
-export type WeekDay = {
-  iso: string;
-  /** "lun.", "mar."… */
-  label: string;
-  dayOfMonth: number;
-  isToday: boolean;
-  isPast: boolean;
-};
-
-/** Les 7 jours de la semaine commençant au lundi donné. */
-export function weekDays(monday: Date, now = new Date()): WeekDay[] {
-  const today = toISODate(now);
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(monday, i);
-    const iso = toISODate(date);
-    return {
-      iso,
-      label: date
-        .toLocaleDateString("fr-FR", { weekday: "short" })
-        .replace(".", ""),
-      dayOfMonth: date.getDate(),
-      isToday: iso === today,
-      isPast: iso < today,
-    };
-  });
-}
-
-/** "Semaine du 3 au 9 août" — entête de la vue semaine. */
-export function weekLabel(monday: Date): string {
-  const sunday = addDays(monday, 6);
-  const sameMonth = monday.getMonth() === sunday.getMonth();
-  const start = monday.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    ...(sameMonth ? {} : { month: "short" }),
-  });
-  const end = sunday.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-  });
-  return `Semaine du ${start} au ${end}`;
 }
 
 /**

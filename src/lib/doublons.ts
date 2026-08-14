@@ -14,7 +14,7 @@
  * GPX ne porte jamais de tours et redépose la sortie en FIT pour en obtenir
  * l'analyse.
  *
- * Ce que ça coûte de ne rien faire : `weeklySeries` et l'état ACWR
+ * Ce que ça coûte de ne rien faire : les courbes de charge et l'état ACWR
  * (`src/lib/metrics.ts`) comptent deux fois la même sortie, et le coach lit un
  * pic de charge qui n'a pas eu lieu. Un chiffre faux et parfaitement
  * plausible.
