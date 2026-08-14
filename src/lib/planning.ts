@@ -126,6 +126,27 @@ export function peutDeplacer(session: Pick<SessionRef, "status">): boolean {
   return session.status === "planned";
 }
 
+/**
+ * Qui peut supprimer cette séance, et pourquoi.
+ *
+ * Miroir exact de la policy `sessions_delete` (migration 018). L'affichage ne
+ * décide de rien — la base refuserait de toute façon — mais proposer un bouton
+ * qui échoue est pire que ne pas le proposer.
+ *
+ * Deux cas, et un seul refus qui mérite d'être expliqué : un athlète devant la
+ * prescription de son coach. Les autres n'ont pas de bouton du tout.
+ */
+export function peutSupprimer(
+  session: { coach_id: string | null; athlete_id: string; status: SessionStatus },
+  utilisateurId: string
+): boolean {
+  // L'athlète, sur sa séance libre : c'est son carnet.
+  if (session.coach_id === null) return session.athlete_id === utilisateurId;
+  // Le coach, sur sa prescription encore à venir. Une séance rapportée porte
+  // le compte rendu de l'athlète, qu'il n'a pas à effacer.
+  return session.coach_id === utilisateurId && session.status === "planned";
+}
+
 type SessionRef = { id: string; date: string; status: SessionStatus };
 
 /**

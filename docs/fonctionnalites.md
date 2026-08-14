@@ -37,6 +37,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Records personnels | Consigner un record par distance standard. Saisissable par le coach **et** par l'athlète. | `personal_records` (012), `RecordsForm` |
 | Note privée sur un athlète | Un carnet libre : blessure passée, contrainte d'emploi du temps, préférence. **L'athlète ne la voit pas.** | `coach_notes` (015), `CoachNoteForm` |
 | Rappel de planification | Le dimanche soir, le coach est prévenu des athlètes sans rien de prévu. Tâche `pg_cron`, pas de cron d'hébergeur. | Migration 005 |
+| Supprimer une séance | Le coach retire une prescription encore à venir ; l'athlète retire ses séances libres. Une prescription ne s'efface pas côté athlète — elle se déclare manquée. | `peutSupprimer`, `DeleteSessionButton`, migration 018 |
 | Retirer un athlète | Rompre le lien de coaching. Emporte la note privée. | `removeAthlete` |
 
 ## S'entraîner — côté athlète

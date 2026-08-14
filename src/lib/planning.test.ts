@@ -3,6 +3,7 @@ import {
   appliquerDeplacement,
   batchSummary,
   peutDeplacer,
+  peutSupprimer,
   planningCalendar,
   planningState,
   pluralize,
@@ -177,5 +178,48 @@ describe("appliquerDeplacement", () => {
 
   it("ne fait rien d'un identifiant inconnu", () => {
     expect(appliquerDeplacement(seances, "zzz", "2026-08-09")).toEqual(seances);
+  });
+});
+
+describe("peutSupprimer", () => {
+  const COACH = "coach-1";
+  const ATHLETE = "athlete-1";
+  const prescrite = (status: "planned" | "completed" | "missed") => ({
+    coach_id: COACH,
+    athlete_id: ATHLETE,
+    status,
+  });
+  const libre = (status: "planned" | "completed" | "missed") => ({
+    coach_id: null,
+    athlete_id: ATHLETE,
+    status,
+  });
+
+  it("laisse le coach retirer une prescription encore à venir", () => {
+    expect(peutSupprimer(prescrite("planned"), COACH)).toBe(true);
+  });
+
+  it("empêche le coach d'effacer une séance déjà rapportée", () => {
+    // Elle porte le RPE, la durée et le ressenti de l'athlète : l'effacer
+    // reviendrait à effacer son travail.
+    expect(peutSupprimer(prescrite("completed"), COACH)).toBe(false);
+    expect(peutSupprimer(prescrite("missed"), COACH)).toBe(false);
+  });
+
+  it("empêche l'athlète d'effacer une prescription", () => {
+    // S'il ne l'a pas faite, il la déclare manquée — c'est à ça que sert le
+    // statut, et c'est ce qui garde l'adhérence honnête.
+    expect(peutSupprimer(prescrite("planned"), ATHLETE)).toBe(false);
+    expect(peutSupprimer(prescrite("missed"), ATHLETE)).toBe(false);
+  });
+
+  it("laisse l'athlète retirer ses séances libres, faites ou non", () => {
+    expect(peutSupprimer(libre("planned"), ATHLETE)).toBe(true);
+    expect(peutSupprimer(libre("completed"), ATHLETE)).toBe(true);
+  });
+
+  it("ne laisse personne d'autre y toucher", () => {
+    expect(peutSupprimer(libre("planned"), "quelqu-un-dautre")).toBe(false);
+    expect(peutSupprimer(prescrite("planned"), "quelqu-un-dautre")).toBe(false);
   });
 });
