@@ -96,7 +96,12 @@ export default async function SettingsPage() {
               Sert de base au calcul des zones sur tes séances importées.
             </p>
             <div className="mt-3">
-              <HeartRateRefsForm fcMax={profile.fc_max} fcRepos={profile.fc_repos} />
+              <HeartRateRefsForm
+                fcMax={profile.fc_max}
+                fcRepos={profile.fc_repos}
+                lthr={profile.lthr}
+                methode={profile.zone_method}
+              />
             </div>
           </Card>
         )}

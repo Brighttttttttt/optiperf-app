@@ -49,7 +49,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Séance libre | Déclarer une sortie qui n'avait pas été prescrite. | `FreeSessionForm` |
 | Import d'un fichier de montre | Déposer un GPX, TCX ou FIT. **Le fichier est lu par le navigateur**, jamais envoyé au serveur ; l'athlète voit ce qui en a été tiré avant de valider. | `ImportActivityForm`, `src/lib/activites.ts` |
 | Trace de l'activité | Fréquence cardiaque, allure et altitude au fil de la sortie, sous-échantillonnées à 400 points. | `activity_traces` (009), `ActivityTraceChart` |
-| Zones de fréquence cardiaque | Répartition du temps par zone, à partir de la FC max saisie. | `zones.ts`, `ZoneBar`, migration 010 |
+| Zones de fréquence cardiaque | Répartition du temps par zone, selon **trois méthodes** au choix de l'athlète : % FC max, % seuil (LTHR), ou réserve (Karvonen). La méthode s'affiche à côté des zones. | `zones.ts`, `ZoneBar`, migrations 010 et 017 |
 | VMA | Saisie par l'athlète seul ; le coach la consulte. | Migration 012, `VmaForm` |
 | Vue semaine | Sa propre semaine, en lecture : état et contenu de chaque séance. | `/planning`, `WeekPlanner` |
 | Historique | Séances passées, courbes de charge et de volume. | `/history`, `TrendCharts` |
