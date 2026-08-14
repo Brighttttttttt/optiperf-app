@@ -1,15 +1,25 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 /**
- * Qui peut supprimer une séance (migration 018).
+ * Qui peut supprimer une séance (migration 018), et où le geste se trouve.
  *
- * On s'adresse à la base directement : c'est la policy qu'on vérifie, et elle
- * doit tenir même si quelqu'un contourne l'interface. La règle affichée
- * (`peutSupprimer`, testée à part) n'en est que le miroir.
+ * Deux volets. Le premier s'adresse à la base directement : c'est la policy
+ * qu'on vérifie, et elle doit tenir même si quelqu'un contourne l'interface.
+ * La règle affichée (`peutSupprimer`, testée à part) n'en est que le miroir.
  *
  * Le cas qui compte est le troisième : jusqu'à cette migration, la policy de
  * 001 laissait un athlète effacer une prescription de son coach. Personne ne
  * s'en était aperçu parce qu'aucun écran n'appelait la suppression.
+ *
+ * Le second volet, en bas de fichier, regarde l'écran : la suppression n'avait
+ * pas été trouvée à l'usage, coincée entre deux blocs de données où elle se
+ * lisait comme une légende (#137).
  */
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -179,4 +189,85 @@ test("une activité importée survit à la suppression de sa séance", async ({
   const [trouvee] = (await apres.json()) as Array<{ session_id: string | null }>;
   expect(trouvee).toBeDefined();
   expect(trouvee.session_id).toBeNull();
+});
+
+// ============ Où le geste se trouve à l'écran (#137) ============
+
+async function seConnecter(page: Page, email: string) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Mot de passe").fill(MOT_DE_PASSE);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page).toHaveURL(/\/$|\/\?/);
+}
+
+/**
+ * Le haut de la boîte du bouton, pour le comparer au bas d'un repère : c'est
+ * le seul énoncé vérifiable de « en pied de page », et il ne dépend d'aucune
+ * classe.
+ */
+async function hautDe(cible: Locator) {
+  const boite = await cible.boundingBox();
+  expect(boite, "élément sans boîte, donc invisible").not.toBeNull();
+  return boite!;
+}
+
+test("côté athlète, la suppression est sous le compte rendu", async ({
+  page,
+  request,
+}) => {
+  const lea = await ouvrirSession(request, "lea@example.com");
+  const titre = `Placement e2e ${crypto.randomUUID().slice(0, 8)}`;
+  const id = await creerSeance(request, lea, {
+    athlete_id: lea.id,
+    coach_id: null,
+    title: titre,
+    status: "completed",
+    rpe: 6,
+    duration_actual_min: 45,
+    athlete_comment: "Sensations correctes.",
+  });
+
+  await seConnecter(page, "lea@example.com");
+  await page.goto(`/seances/${id}`);
+
+  const bouton = page.getByRole("button", { name: "Supprimer la séance" });
+  await expect(bouton).toBeVisible();
+
+  // Sous la carte du réalisé, et non glissée au milieu des données.
+  const compteRendu = await hautDe(page.getByText("Sensations correctes."));
+  const boite = await hautDe(bouton);
+  expect(boite.y).toBeGreaterThan(compteRendu.y + compteRendu.height);
+
+  // Une cible qu'on n'attrape pas de travers, en bas d'une page défilée.
+  expect(boite.height).toBeGreaterThanOrEqual(44);
+
+  await bouton.click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+
+  await page.goto("/history");
+  await expect(page.getByText(titre)).toBeHidden();
+});
+
+test("côté coach, la suppression est sous le formulaire", async ({
+  page,
+  request,
+}) => {
+  const coach = await ouvrirSession(request, "coach@example.com");
+  const lea = await ouvrirSession(request, "lea@example.com");
+  const id = await creerSeance(request, coach, {
+    athlete_id: lea.id,
+    coach_id: coach.id,
+  });
+
+  await seConnecter(page, "coach@example.com");
+  await page.goto(`/seances/${id}`);
+
+  const bouton = page.getByRole("button", { name: "Supprimer la séance" });
+  await expect(bouton).toBeVisible();
+
+  const enregistrer = await hautDe(page.getByRole("button", { name: "Enregistrer" }));
+  const boite = await hautDe(bouton);
+  expect(boite.y).toBeGreaterThan(enregistrer.y + enregistrer.height);
+  expect(boite.height).toBeGreaterThanOrEqual(44);
 });
