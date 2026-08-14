@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
+import {
+  chargerFenetrePlanning,
+  type FenetrePlanning,
+} from "@/lib/session-details";
 import { validerTours, validerTrace } from "@/lib/activites";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
@@ -268,6 +272,32 @@ export async function moveSession(
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/**
+ * Les séances d'une période plus ancienne (ou plus lointaine) que la fenêtre
+ * initiale de la vue semaine.
+ *
+ * La vue charge ±8 semaines d'emblée pour naviguer sans attendre le serveur.
+ * Au-delà, elle affichait des jours vides indistinguables de jours libres —
+ * une séance importée d'une sortie d'il y a trois mois n'apparaissait nulle
+ * part dans le planning (#141). Elle vient donc la chercher, et seulement
+ * pour ce qui n'a jamais été chargé.
+ *
+ * Aucun contrôle d'accès ici : la RLS ne rend que les séances du compte ou de
+ * ses athlètes, quel que soit l'identifiant demandé.
+ */
+export async function chargerPlanning(
+  athleteId: string,
+  debut: string,
+  fin: string
+): Promise<FenetrePlanning | null> {
+  const { supabase } = await requireUser();
+  const dateValide = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+  if (!athleteId || !dateValide(debut) || !dateValide(fin) || debut > fin) {
+    return null;
+  }
+  return chargerFenetrePlanning(supabase, athleteId, debut, fin);
 }
 
 export async function deleteTemplate(formData: FormData) {

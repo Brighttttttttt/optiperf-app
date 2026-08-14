@@ -4,6 +4,7 @@ import type {
   ActivityLap,
   Exercise,
   ExerciseLog,
+  TrainingSession,
   WorkoutBlock,
 } from "./types";
 import { analyserSeance, type AnalyseSeance } from "./analyse-seance";
@@ -149,4 +150,46 @@ export async function chargerAnalysesSeances(
     );
   }
   return out;
+}
+
+/** Une tranche de planning : les séances d'une période, et tout leur contenu. */
+export type FenetrePlanning = SessionDetails & {
+  sessions: TrainingSession[];
+  analysesBySession: Record<string, AnalyseSeance>;
+};
+
+/**
+ * Tout ce qu'il faut à la vue semaine pour une période donnée.
+ *
+ * Un seul chargeur pour les trois appelants — la page de l'athlète, celle du
+ * coach, et l'action qui va chercher une période plus ancienne quand on
+ * navigue hors de la fenêtre initiale (#141). Les trois doivent rendre
+ * exactement la même chose : une séance qui apparaîtrait sans ses blocs selon
+ * le chemin emprunté serait pire qu'une séance absente.
+ *
+ * La RLS décide seule de ce qui revient : `athleteId` sert à cibler, pas à
+ * autoriser.
+ */
+export async function chargerFenetrePlanning(
+  supabase: Client,
+  athleteId: string,
+  debut: string,
+  fin: string
+): Promise<FenetrePlanning> {
+  const { data } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .gte("date", debut)
+    .lte("date", fin)
+    .order("date");
+  const sessions = (data ?? []) as TrainingSession[];
+  const ids = sessions.map((s) => s.id);
+
+  const [details, analysesBySession] = await Promise.all([
+    chargerDetailsSeances(supabase, ids),
+    chargerAnalysesSeances(supabase, ids),
+  ]);
+
+  return { sessions, ...details, analysesBySession };
 }
