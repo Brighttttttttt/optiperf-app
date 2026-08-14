@@ -45,6 +45,7 @@ servent à faire. En raccourci :
    - `013_musculation.sql` — exercices prescrits et compte rendu d'une séance de musculation
    - `014_coach_qui_sentraine.sql` — un coach peut aussi s'entraîner, et rejoindre un autre coach
    - `015_note_du_coach.sql` — note libre du coach sur un athlète, que l'athlète ne voit pas
+   - `016_tours_activite.sql` — les tours d'une activité importée (FIT et TCX), base de l'analyse de séance
 3. Dashboard → **Authentication → URL Configuration** :
    - **Site URL** : l'URL publique de l'app (ex. `https://optiperf-app.vercel.app`) — jamais `localhost`, sinon les liens des emails de confirmation sont inutilisables pour tes utilisateurs.
    - **Redirect URLs** : ajoute `https://<ton-domaine>/**` et, pour développer en local, `http://localhost:3000/**`.

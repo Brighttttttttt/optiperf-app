@@ -43,6 +43,7 @@ Abréviations : **A** = l'athlète concerné · **C** = son coach · **∅** = p
 | `session_templates` | 003 | Modèles de séances réutilisables | Le coach seul | Le coach seul |
 | `activities` | 007 | Ce qu'une montre a enregistré | A + C | **A seul** |
 | `activity_traces` | 009 | FC/allure/altitude d'une activité, une ligne par activité | A + C | A seul, à l'import — **pas d'update** |
+| `activity_laps` | 016 | Les tours d'une activité : une ligne par tour | A + C | A seul, à l'import — **pas d'update** |
 | `workout_blocks` | 011 | Structure d'une séance running | A + C | Qui prescrit, **tant que la séance est `planned`** |
 | `personal_records` | 012 | Un record par distance standard | A + C | A + C |
 | `exercises` | 013 | Musculation prescrite | A + C | Qui prescrit, **tant que la séance est `planned`** |
