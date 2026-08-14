@@ -34,7 +34,7 @@ Abréviations : **A** = l'athlète concerné · **C** = son coach · **∅** = p
 
 | Table | Migration | Ce qu'elle porte | Lecture | Écriture |
 |---|---|---|---|---|
-| `profiles` | 001, +010, +012 | Rôle, nom, code d'invitation, FC max/repos, VMA | A + C | A seul, **colonne par colonne** |
+| `profiles` | 001, +010, +012, +017 | Rôle, nom, code d'invitation, FC max/repos, VMA, seuil, méthode de zones | A + C | A seul, **colonne par colonne** |
 | `coach_athletes` | 001 | Le lien de coaching. Clé (coach, athlète), `unique (athlete_id)` → **un athlète a au plus un coach** | A + C | Créé par `link_to_coach` seulement ; supprimable par les deux |
 | `objectives` | 001 | Une échéance nommée | A + C | A + C |
 | `sessions` | 001 | La séance : prescription **et** compte rendu | A + C | C prescrit, A rapporte — arbitré par trigger |

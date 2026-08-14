@@ -10,7 +10,11 @@ import { ZoneBar } from "@/components/ZoneBar";
 import { ExercisesList } from "@/components/ExercisesList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
-import { repartitionZones } from "@/lib/zones";
+import {
+  libelleMethode,
+  methodeCalculable,
+  repartitionZones,
+} from "@/lib/zones";
 import { analyserSeance } from "@/lib/analyse-seance";
 import {
   activitySourceLabel,
@@ -53,9 +57,11 @@ export default async function SessionPage({
 
   const { data: athlete } = await supabase
     .from("profiles")
-    .select("full_name, fc_max")
+    .select("full_name, fc_max, fc_repos, lthr, zone_method")
     .eq("id", session.athlete_id)
-    .maybeSingle<Pick<Profile, "full_name" | "fc_max">>();
+    .maybeSingle<
+      Pick<Profile, "full_name" | "fc_max" | "fc_repos" | "lthr" | "zone_method">
+    >();
 
   const { data: blocksData } = await supabase
     .from("workout_blocks")
@@ -220,10 +226,18 @@ export default async function SessionPage({
 
           {trace && (
             <Card className="p-4 space-y-4">
-              {athlete?.fc_max && (
+              {athlete && methodeCalculable(athlete.zone_method, {
+                fcMax: athlete.fc_max,
+                fcRepos: athlete.fc_repos,
+                lthr: athlete.lthr,
+              }) && (
                 <ZoneBar
-                  titre="Zones de fréquence cardiaque"
-                  zones={repartitionZones(trace.t_s, trace.heart_rate ?? [], athlete.fc_max)}
+                  titre={`Zones de fréquence cardiaque · ${libelleMethode(athlete.zone_method)}`}
+                  zones={repartitionZones(trace.t_s, trace.heart_rate ?? [], athlete.zone_method, {
+                    fcMax: athlete.fc_max,
+                    fcRepos: athlete.fc_repos,
+                    lthr: athlete.lthr,
+                  })}
                 />
               )}
               <ActivityTraceChart trace={trace} />

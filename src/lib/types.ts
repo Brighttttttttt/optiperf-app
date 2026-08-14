@@ -1,3 +1,5 @@
+import type { MethodeZones } from "./zones";
+
 /** Limites de longueur — miroir des contraintes SQL (migrations 002 et 007). */
 export const LIMITS = {
   fullName: 80,
@@ -23,6 +25,10 @@ export type Profile = {
   fc_repos: number | null;
   /** Saisie directement, éventuellement à partir d'une suggestion (src/lib/records.ts). */
   vma_kmh: number | null;
+  /** Fréquence au seuil lactique (migration 017), base de la méthode LTHR. */
+  lthr: number | null;
+  /** Méthode de calcul des zones choisie par l'athlète. */
+  zone_method: MethodeZones;
   created_at: string;
 };
 

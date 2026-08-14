@@ -12,6 +12,11 @@ import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
 import { VIEW_MODE_COOKIE, VIEW_MODE_MAX_AGE } from "@/lib/view-mode";
+import {
+  methodeCalculable,
+  METHODES_ZONES,
+  type MethodeZones,
+} from "@/lib/zones";
 
 export type ActionState = { error?: string; ok?: boolean } | null;
 
@@ -521,9 +526,31 @@ export async function updateHeartRateRefs(
     return { error: "La FC de repos doit être inférieure à la FC max." };
   }
 
+  const lthr = nombreOuNull("lthr", 100, 220);
+  if (lthr === "invalide") {
+    return { error: "La fréquence au seuil doit être comprise entre 100 et 220 bpm." };
+  }
+  // Contrainte doublée : la base la refuserait de toute façon (017), mais son
+  // message d'erreur ne dirait rien à l'athlète.
+  if (lthr !== null && fcMax !== null && lthr >= fcMax) {
+    return { error: "La fréquence au seuil doit être inférieure à la FC max." };
+  }
+
+  const methodeBrute = String(formData.get("zone_method") ?? "fcmax");
+  const methode = METHODES_ZONES.some((m) => m.valeur === methodeBrute)
+    ? (methodeBrute as MethodeZones)
+    : "fcmax";
+
+  // Une méthode dont la donnée manque se refuse ici plutôt que d'afficher des
+  // zones vides sans explication.
+  if (!methodeCalculable(methode, { fcMax, fcRepos, lthr })) {
+    const besoin = METHODES_ZONES.find((m) => m.valeur === methode)?.besoin ?? "";
+    return { error: `Cette méthode de zones a besoin de ${besoin}.` };
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update({ fc_max: fcMax, fc_repos: fcRepos })
+    .update({ fc_max: fcMax, fc_repos: fcRepos, lthr, zone_method: methode })
     .eq("id", user.id);
   if (error) return { error: "Impossible d'enregistrer." };
 
