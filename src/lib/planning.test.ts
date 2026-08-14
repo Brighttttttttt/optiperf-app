@@ -10,11 +10,8 @@ import {
   planningCalendar,
   planningState,
   pluralize,
-  startOfWeek,
-  weekDays,
-  weekLabel,
 } from "./planning";
-import { toISODate } from "./dates";
+import { addDays, toISODate } from "./dates";
 
 // Mercredi 5 août 2026, 10 h à Paris.
 const NOW = new Date("2026-08-05T10:00:00+02:00");
@@ -40,65 +37,6 @@ describe("planningCalendar", () => {
   it("marque les lundis pour découper la grille", () => {
     const mondays = days.filter((d) => d.startsWeek).map((d) => d.iso);
     expect(mondays).toEqual(["2026-08-10", "2026-08-17"]);
-  });
-});
-
-describe("startOfWeek", () => {
-  it("remonte au lundi, semaine française", () => {
-    // 5 août 2026 est un mercredi.
-    expect(toISODate(startOfWeek(NOW))).toBe("2026-08-03");
-  });
-
-  it("laisse un lundi en place", () => {
-    expect(toISODate(startOfWeek(new Date("2026-08-03T09:00:00+02:00")))).toBe(
-      "2026-08-03"
-    );
-  });
-
-  it("ne fait pas basculer le dimanche à la semaine suivante", () => {
-    // 9 août 2026 est un dimanche : il appartient à la semaine du 3.
-    expect(toISODate(startOfWeek(new Date("2026-08-09T23:00:00+02:00")))).toBe(
-      "2026-08-03"
-    );
-  });
-});
-
-describe("weekDays", () => {
-  const days = weekDays(startOfWeek(NOW), NOW);
-
-  it("rend sept jours, du lundi au dimanche", () => {
-    expect(days).toHaveLength(7);
-    expect(days[0].iso).toBe("2026-08-03");
-    expect(days[6].iso).toBe("2026-08-09");
-  });
-
-  it("repère aujourd'hui et distingue le passé", () => {
-    expect(days.filter((d) => d.isToday).map((d) => d.iso)).toEqual([
-      "2026-08-05",
-    ]);
-    expect(days.filter((d) => d.isPast).map((d) => d.iso)).toEqual([
-      "2026-08-03",
-      "2026-08-04",
-    ]);
-  });
-
-  it("abrège les jours sans point final", () => {
-    expect(days[0].label).toBe("lun");
-    expect(days[6].label).toBe("dim");
-  });
-});
-
-describe("weekLabel", () => {
-  it("ne répète pas le mois quand la semaine ne le franchit pas", () => {
-    expect(weekLabel(new Date("2026-08-03T12:00:00+02:00"))).toBe(
-      "Semaine du 3 au 9 août"
-    );
-  });
-
-  it("précise les deux mois quand la semaine les franchit", () => {
-    expect(weekLabel(new Date("2026-08-31T12:00:00+02:00"))).toBe(
-      "Semaine du 31 août au 6 septembre"
-    );
   });
 });
 
@@ -185,53 +123,57 @@ describe("appliquerDeplacement", () => {
 });
 
 describe("fenetreAutour", () => {
-  it("couvre huit semaines de part et d'autre", () => {
+  it("couvre douze semaines de part et d'autre", () => {
     expect(fenetreAutour(NOW)).toEqual({
-      debut: "2026-06-10",
-      fin: "2026-09-30",
+      debut: "2026-05-13",
+      fin: "2026-10-28",
     });
   });
 });
 
 describe("fenetreManquante", () => {
   const fenetre = fenetreAutour(NOW);
+  /** La période telle que la passe la vue : les bornes de la grille affichée. */
+  const semaine = (lundiIso: string) => ({
+    debut: lundiIso,
+    fin: toISODate(addDays(new Date(`${lundiIso}T12:00:00Z`), 6)),
+  });
 
-  it("ne demande rien pour une semaine déjà couverte", () => {
-    expect(fenetreManquante(fenetre, startOfWeek(NOW))).toBeNull();
-    // Une semaine entièrement dans la fenêtre, loin des bords.
+  it("ne demande rien pour une période déjà couverte", () => {
+    expect(fenetreManquante(fenetre, semaine("2026-08-03"))).toBeNull();
+    // Un mois entier, loin des bords.
     expect(
-      fenetreManquante(fenetre, new Date("2026-07-06T12:00:00+02:00"))
+      fenetreManquante(fenetre, { debut: "2026-06-29", fin: "2026-08-02" })
     ).toBeNull();
   });
 
   it("réclame la tranche antérieure quand on remonte trop loin", () => {
     // Le cas réel : une séance importée du 21 mai, hors fenêtre, sur laquelle
     // la vue affichait « Rien de prévu ce jour-là » (#141).
-    const manque = fenetreManquante(
-      fenetre,
-      startOfWeek(new Date("2026-05-21T12:00:00+02:00"))
-    );
-    expect(manque).toEqual({ debut: "2026-04-15", fin: "2026-06-09" });
+    const manque = fenetreManquante(fenetre, {
+      debut: "2026-03-30",
+      fin: "2026-05-03",
+    });
+    expect(manque).toEqual({ debut: "2026-02-18", fin: "2026-05-12" });
     // La tranche touche la fenêtre sans la recouvrir : pas de trou, pas de
     // séance ramenée deux fois.
     expect(manque!.fin < fenetre.debut).toBe(true);
-    expect(manque!.debut <= "2026-05-21").toBe(true);
   });
 
   it("réclame la tranche suivante quand on avance trop loin", () => {
-    const manque = fenetreManquante(
-      fenetre,
-      new Date("2026-10-05T12:00:00+02:00")
-    );
-    expect(manque).toEqual({ debut: "2026-10-01", fin: "2026-11-25" });
+    const manque = fenetreManquante(fenetre, {
+      debut: "2026-11-02",
+      fin: "2026-12-06",
+    });
+    expect(manque).toEqual({ debut: "2026-10-29", fin: "2027-01-20" });
   });
 
-  it("réclame dès qu'un seul jour de la semaine dépasse", () => {
-    // Semaine du 28 septembre : elle finit le 4 octobre, la fenêtre s'arrête
-    // au 30 septembre. Trois jours manquent, donc la semaine est incomplète —
-    // et une semaine incomplète affichée comme entière est le défaut même.
+  it("réclame dès qu'un seul jour de la période dépasse", () => {
+    // Une grille qui finit le 1er novembre alors que la fenêtre s'arrête au
+    // 28 octobre : quatre jours manquent. Une période incomplète affichée
+    // comme entière est le défaut même.
     expect(
-      fenetreManquante(fenetre, new Date("2026-09-28T12:00:00+02:00"))
+      fenetreManquante(fenetre, { debut: "2026-09-28", fin: "2026-11-01" })
     ).not.toBeNull();
   });
 });

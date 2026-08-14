@@ -32,7 +32,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Séance de musculation | Prescrire des exercices : séries, répétitions, charge, repos. | `exercises` (013), `ExercisesEditor` |
 | Analyse affichée | Trois onglets sur la fiche de séance — Analyse, Graphique, Tours — et la structure lisible dans les listes sans ouvrir la séance. Coach et athlète voient la même chose. | `AnalyseTours`, `TourChart`, `TourTable` |
 | Analyse de séance | Lit la structure réelle d'une sortie depuis ses tours : `7×1km`, `2×(4×400m)`, `6×1'30"`, avec l'allure de chaque répétition, la récupération et la tendance. Pur calcul, rien n'est stocké. | `src/lib/analyse-seance.ts` |
-| Déplacer une séance | Glisser une séance d'un jour à l'autre dans la vue semaine, au doigt, à la souris ou aux flèches. Une séance faite ne bouge pas. | `WeekPlanner`, `moveSession` |
+| Déplacer une séance | Glisser une séance d'un jour à l'autre dans la grille du mois, au doigt, à la souris ou aux flèches. Une séance faite ne bouge pas. | `MonthPlanner`, `moveSession` |
 | Objectifs | Une échéance nommée, visible de l'athlète. | `objectives` (001), `ObjectiveForm` |
 | Records personnels | Consigner un record par distance standard. Saisissable par le coach **et** par l'athlète. | `personal_records` (012), `RecordsForm` |
 | Note privée sur un athlète | Un carnet libre : blessure passée, contrainte d'emploi du temps, préférence. **L'athlète ne la voit pas.** | `coach_notes` (015), `CoachNoteForm` |
@@ -55,8 +55,8 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Trace de l'activité | Fréquence cardiaque, allure et altitude au fil de la sortie, sous-échantillonnées à 400 points. | `activity_traces` (009), `ActivityTraceChart` |
 | Zones de fréquence cardiaque | Répartition du temps par zone, selon **trois méthodes** au choix de l'athlète : % FC max, % seuil (LTHR), ou réserve (Karvonen). La méthode s'affiche à côté des zones. | `zones.ts`, `ZoneBar`, migrations 010 et 017 |
 | VMA | Saisie par l'athlète seul ; le coach la consulte. | Migration 012, `VmaForm` |
-| Vue semaine | Sa propre semaine, en lecture : état et contenu de chaque séance. Les semaines au-delà des ±8 chargées d'emblée sont **allées chercher** à la navigation — un jour hors fenêtre n'est jamais annoncé vide. | `/planning`, `WeekPlanner`, `chargerPlanning` |
-| Historique | Séances passées, courbes de charge et de volume. | `/history`, `TrendCharts` |
+| Vue mois | Son mois entier, une ligne par semaine, en lecture : état et contenu de chaque séance. Les flèches changent de mois ; ce qui sort de la fenêtre chargée est **allé chercher** — un jour hors fenêtre n'est jamais annoncé vide. | `/planning`, `MonthPlanner`, `chargerPlanning` |
+| Historique | Séances passées, courbes de charge et de volume **mois par mois**, quatre à six barres hebdomadaires. | `/history`, `TrendMois`, `TrendCharts` |
 
 ## Les deux à la fois
 

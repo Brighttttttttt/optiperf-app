@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader } from "@/components/ui";
-import { WeekPlanner } from "@/components/WeekPlanner";
+import { MonthPlanner } from "@/components/MonthPlanner";
 import { addDays, toISODate } from "@/lib/dates";
 import { chargerFenetrePlanning } from "@/lib/session-details";
 import { fenetreAutour, pluralize } from "@/lib/planning";
@@ -54,7 +54,7 @@ export default async function PlanningPage() {
       />
       <div className="px-5">
         <Card className="p-3">
-          <WeekPlanner
+          <MonthPlanner
             athleteId={profile.id}
             sessions={sessions}
             fenetre={fenetre}

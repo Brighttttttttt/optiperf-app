@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui";
-import { WeekPlanner } from "@/components/WeekPlanner";
+import { MonthPlanner } from "@/components/MonthPlanner";
 import { IconPlus } from "@/components/Icons";
 import { btnPrimary } from "@/lib/styles";
 import { toISODate } from "@/lib/dates";
@@ -50,7 +50,7 @@ export default async function AthletePlanningPage({
         </Link>
       </div>
       <Card className="p-3">
-        <WeekPlanner
+        <MonthPlanner
           athleteId={id}
           sessions={sessions}
           fenetre={fenetre}

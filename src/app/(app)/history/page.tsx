@@ -6,9 +6,8 @@ import { getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { SessionRow } from "@/components/SessionRow";
 import { chargerAnalysesSeances } from "@/lib/session-details";
-import { TrendCharts } from "@/components/TrendCharts";
-import { weeklySeries } from "@/lib/metrics";
-import { addDays, toISODate } from "@/lib/dates";
+import { TrendMois } from "@/components/TrendMois";
+import { fenetreAutour } from "@/lib/planning";
 import type { Activity, TrainingSession } from "@/lib/types";
 
 function monthLabel(iso: string): string {
@@ -24,6 +23,7 @@ export default async function HistoryPage() {
   if (!user) redirect("/login");
 
   const now = new Date();
+  const fenetre = fenetreAutour(now);
 
   const [historyRes, trendRes, activitiesRes] = await Promise.all([
     supabase
@@ -33,13 +33,15 @@ export default async function HistoryPage() {
       .in("status", ["completed", "missed"])
       .order("date", { ascending: false })
       .limit(120),
-    // Fenêtre dédiée aux courbes : 12 semaines, tous statuts confondus, pour
-    // pouvoir comparer le réalisé au prévu.
+    // Fenêtre dédiée aux courbes, tous statuts confondus pour pouvoir
+    // comparer le réalisé au prévu. Elle borne aussi ce que la navigation
+    // mensuelle peut afficher sans redemander le serveur (#143).
     supabase
       .from("sessions")
       .select("*")
       .eq("athlete_id", user.id)
-      .gte("date", toISODate(addDays(now, -84)))
+      .gte("date", fenetre.debut)
+      .lte("date", fenetre.fin)
       .order("date"),
     // Ce que la montre a relevé, pour les séances qui en viennent.
     supabase
@@ -94,7 +96,7 @@ export default async function HistoryPage() {
       <div className="px-5 space-y-4">
         {trend.length > 0 && (
           <Card className="p-4">
-            <TrendCharts points={weeklySeries(trend, 12, now)} />
+            <TrendMois athleteId={user.id} sessions={trend} fenetre={fenetre} />
           </Card>
         )}
 

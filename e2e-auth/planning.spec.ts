@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Vue semaine, des deux côtés : le coach construit une séance structurée, la
- * retrouve dans la semaine de son athlète avec son contenu et son état, et
+ * Vue mois, des deux côtés : le coach construit une séance structurée, la
+ * retrouve dans le mois de son athlète avec son contenu et son état, et
  * l'athlète lit la même chose depuis son propre onglet Planning.
  */
 
@@ -91,18 +91,18 @@ test("la semaine montre le contenu et l'état des séances, côté coach et côt
   await pageAthlete.close();
 });
 
-test("une semaine passée porte l'état de chaque séance", async ({ page }) => {
+test("un mois passé porte l'état de chaque séance", async ({ page }) => {
   await seConnecter(page, "lea@example.com");
   await page.getByRole("link", { name: "Planning" }).click();
-  await page.getByRole("button", { name: "Semaine précédente" }).click();
+  await page.getByRole("button", { name: "Mois précédent" }).click();
 
   // Un jour qui porte au moins une séance, plutôt que le jour ouvert d'office :
-  // le peuplement tire les jours d'entraînement, et le même jour de la semaine
-  // dernière peut être vide. Le compte est annoncé dans le repère accessible.
+  // le peuplement tire les jours d'entraînement, et le premier du mois peut
+  // être vide. Le compte est annoncé dans le repère accessible.
   await page.getByRole("button", { name: /, [1-9] séance\(s\)/ }).first().click();
 
   // Le vocabulaire du passé, jamais « À venir » : le peuplement tire au sort
-  // ce qui a été fait ou manqué, mais une séance d'une semaine écoulée tombe
+  // ce qui a été fait ou manqué, mais une séance d'un mois écoulé tombe
   // forcément dans l'un de ces trois états.
   const carte = page.locator("div.rounded-xl.bg-card").first();
   await expect(
@@ -110,21 +110,25 @@ test("une semaine passée porte l'état de chaque séance", async ({ page }) => 
   ).toBeVisible();
 });
 
-test("le jour ouvert suit le changement de semaine", async ({ page }) => {
+test("le jour ouvert suit le changement de mois", async ({ page }) => {
   // Régression : le panneau du bas continuait de détailler le jour
   // sélectionné avant la navigation — donc un jour absent de la grille
-  // affichée, en croyant lire la semaine qu'on regarde.
+  // affichée, en croyant lire le mois qu'on regarde.
   await seConnecter(page, "lea@example.com");
   await page.getByRole("link", { name: "Planning" }).click();
 
   const jourOuvert = page.locator('button[aria-pressed="true"]');
   const avant = await jourOuvert.getAttribute("aria-label");
 
-  await page.getByRole("button", { name: "Semaine précédente" }).click();
+  await page.getByRole("button", { name: "Mois précédent" }).click();
 
   // Toujours exactement un jour ouvert, et il appartient à la grille visible.
   await expect(jourOuvert).toHaveCount(1);
   expect(await jourOuvert.getAttribute("aria-label")).not.toBe(avant);
+
+  // Il est bien dans la grille affichée, et non hérité du mois d'avant.
+  const iso = await jourOuvert.getAttribute("data-jour");
+  await expect(page.locator(`[data-jour="${iso}"]`)).toHaveCount(1);
 });
 
 test("le coach déplace une séance d'un jour, au clavier", async ({ page }) => {
@@ -174,7 +178,7 @@ test("une séance qui n'est plus à venir ne se déplace plus", async ({ page })
   await seConnecter(page, "coach@example.com");
   await page.getByRole("link", { name: "Léa Martin" }).click();
   await page.getByRole("link", { name: "Planning" }).click();
-  await page.getByRole("button", { name: "Semaine précédente" }).click();
+  await page.getByRole("button", { name: "Mois précédent" }).click();
   await page.getByRole("button", { name: /, [1-9] séance\(s\)/ }).first().click();
 
   // Le peuplement ne laisse aucune séance encore planifiée dans le passé :
