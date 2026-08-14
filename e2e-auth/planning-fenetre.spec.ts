@@ -20,16 +20,30 @@ const MOT_DE_PASSE = "optiperf-demo";
 const SEMAINES = 12;
 
 /**
- * Composants locaux, jamais `toISOString()` : celui-ci bascule en UTC et
- * peut reculer d'un jour, donc d'une semaine entière quand la date tombe un
- * lundi — le décompte de clics ne tomberait plus juste.
+ * La date d'aujourd'hui **telle que l'app la voit**, c'est-à-dire à Paris.
+ *
+ * `src/lib/dates.ts` force Europe/Paris partout, parce que Vercel tourne en
+ * UTC. Dater le test avec le fuseau de la machine qui l'exécute — UTC sur les
+ * runners — décale d'un jour entre 22 h et minuit, et donc d'un jour le jour
+ * ouvert par le panneau : le test cherchait sa séance la veille de l'endroit
+ * où l'app l'affichait (#146). Déterministe, pas instable : il n'y avait rien
+ * à réessayer.
+ *
+ * `fr-CA` est le raccourci habituel vers un format `AAAA-MM-JJ`.
  */
+function aujourdhuiAParis(): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(
+    new Date()
+  );
+}
+
 function ilYADouzeSemaines() {
-  const d = new Date();
-  d.setDate(d.getDate() - SEMAINES * 7);
-  const mois = String(d.getMonth() + 1).padStart(2, "0");
-  const jour = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mois}-${jour}`;
+  const [an, mois, jour] = aujourdhuiAParis().split("-").map(Number);
+  // Midi UTC : assez loin des deux bascules de minuit pour qu'aucun décalage
+  // horaire ne change le quantième pendant le calcul.
+  const d = new Date(Date.UTC(an, mois - 1, jour, 12));
+  d.setUTCDate(d.getUTCDate() - SEMAINES * 7);
+  return d.toISOString().slice(0, 10);
 }
 
 async function ouvrirSession(request: APIRequestContext, email: string) {
