@@ -369,12 +369,41 @@ export async function missSession(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-export async function deleteSession(formData: FormData) {
+/**
+ * Supprime une séance — le geste le plus irréversible de l'app.
+ *
+ * La policy `sessions_delete` (migration 018) est seule juge : le coach sur sa
+ * prescription encore à venir, l'athlète sur ses séances libres. On ne
+ * revérifie donc rien ici, mais on **lit le nombre de lignes touchées** pour
+ * distinguer un refus d'un succès — sans quoi une suppression interdite
+ * ressemblerait à une suppression réussie.
+ *
+ * Les activités rattachées survivent (`on delete set null`, 007) : ce qu'une
+ * montre a mesuré reste vrai même sans la séance qui la portait.
+ */
+export async function deleteSession(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const { supabase } = await requireUser();
   const id = String(formData.get("session_id") ?? "");
-  if (!id) return;
-  await supabase.from("sessions").delete().eq("id", id);
+  if (!id) return { error: "Séance introuvable." };
+
+  const { error, count } = await supabase
+    .from("sessions")
+    .delete({ count: "exact" })
+    .eq("id", id);
+
+  if (error) return { error: "Suppression impossible. Réessaie." };
+  if (!count) {
+    return {
+      error:
+        "Cette séance ne peut pas être supprimée : une séance prescrite par ton coach se déclare manquée, et une séance déjà faite appartient à son compte rendu.",
+    };
+  }
+
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 // ---------- Note du coach ----------

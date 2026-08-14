@@ -5,6 +5,7 @@ import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
 import { AnalyseTours } from "@/components/AnalyseTours";
+import { DeleteSessionButton } from "@/components/DeleteSessionButton";
 import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
 import { ZoneBar } from "@/components/ZoneBar";
 import { ExercisesList } from "@/components/ExercisesList";
@@ -16,6 +17,7 @@ import {
   repartitionZones,
 } from "@/lib/zones";
 import { analyserSeance } from "@/lib/analyse-seance";
+import { peutSupprimer } from "@/lib/planning";
 import {
   activitySourceLabel,
   sessionTypeLabel,
@@ -224,6 +226,15 @@ export default async function SessionPage({
             </Card>
           )}
 
+          {profile && peutSupprimer(session, profile.id) && (
+            <div className="pt-1">
+              <DeleteSessionButton
+                sessionId={session.id}
+                aDuContenu={blocks.length > 0 || exercises.length > 0}
+              />
+            </div>
+          )}
+
           {trace && (
             <Card className="p-4 space-y-4">
               {athlete && methodeCalculable(athlete.zone_method, {
@@ -257,6 +268,14 @@ export default async function SessionPage({
       />
       <div className="px-5">
         <EditSessionForm session={session} blocks={blocks} exercises={exercises} />
+        {profile && peutSupprimer(session, profile.id) && (
+          <div className="mt-4">
+            <DeleteSessionButton
+              sessionId={session.id}
+              aDuContenu={blocks.length > 0 || exercises.length > 0}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
