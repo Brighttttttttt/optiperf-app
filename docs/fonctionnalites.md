@@ -53,7 +53,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Trace de l'activité | Fréquence cardiaque, allure et altitude au fil de la sortie, sous-échantillonnées à 400 points. | `activity_traces` (009), `ActivityTraceChart` |
 | Zones de fréquence cardiaque | Répartition du temps par zone, selon **trois méthodes** au choix de l'athlète : % FC max, % seuil (LTHR), ou réserve (Karvonen). La méthode s'affiche à côté des zones. | `zones.ts`, `ZoneBar`, migrations 010 et 017 |
 | VMA | Saisie par l'athlète seul ; le coach la consulte. | Migration 012, `VmaForm` |
-| Vue semaine | Sa propre semaine, en lecture : état et contenu de chaque séance. | `/planning`, `WeekPlanner` |
+| Vue semaine | Sa propre semaine, en lecture : état et contenu de chaque séance. Les semaines au-delà des ±8 chargées d'emblée sont **allées chercher** à la navigation — un jour hors fenêtre n'est jamais annoncé vide. | `/planning`, `WeekPlanner`, `chargerPlanning` |
 | Historique | Séances passées, courbes de charge et de volume. | `/history`, `TrendCharts` |
 
 ## Les deux à la fois

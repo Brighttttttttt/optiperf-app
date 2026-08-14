@@ -4,6 +4,73 @@ import type { SessionStatus } from "./types";
 /** Nombre maximal de séances créées en une seule fois (athlètes × dates). */
 export const MAX_BATCH_SESSIONS = 120;
 
+/**
+ * Demi-largeur de la fenêtre chargée d'emblée par la vue semaine, en jours.
+ *
+ * Huit semaines de part et d'autre : assez pour que la navigation ordinaire
+ * n'attende jamais le serveur, ce qui est tout l'intérêt de la vue.
+ */
+export const FENETRE_PLANNING_JOURS = 56;
+
+/** Période couverte par les données déjà chargées. */
+export type FenetreDates = { debut: string; fin: string };
+
+export function fenetreAutour(
+  now = new Date(),
+  jours = FENETRE_PLANNING_JOURS
+): FenetreDates {
+  return {
+    debut: toISODate(addDays(now, -jours)),
+    fin: toISODate(addDays(now, jours)),
+  };
+}
+
+/**
+ * Ce qu'il manque pour afficher la semaine du `lundi`, ou `null` si elle est
+ * déjà couverte.
+ *
+ * Sans cela, la vue affirmait qu'un jour était vide alors qu'elle n'avait
+ * simplement jamais demandé ses séances — indistinguable d'un jour libre
+ * (#141). Le manque est rendu **par blocs d'une fenêtre entière** plutôt que
+ * semaine par semaine : qui remonte de deux mois continue généralement, et
+ * sept requêtes valent mieux qu'une seule un peu plus large.
+ */
+export function fenetreManquante(
+  fenetre: FenetreDates,
+  monday: Date,
+  jours = FENETRE_PLANNING_JOURS
+): FenetreDates | null {
+  const debutSemaine = toISODate(monday);
+  const finSemaine = toISODate(addDays(monday, 6));
+
+  if (debutSemaine < fenetre.debut) {
+    return {
+      debut: toISODate(addDays(new Date(`${fenetre.debut}T12:00:00`), -jours)),
+      // Jusqu'à la veille de ce qu'on a déjà : les deux tranches se touchent
+      // sans se recouvrir.
+      fin: toISODate(addDays(new Date(`${fenetre.debut}T12:00:00`), -1)),
+    };
+  }
+  if (finSemaine > fenetre.fin) {
+    return {
+      debut: toISODate(addDays(new Date(`${fenetre.fin}T12:00:00`), 1)),
+      fin: toISODate(addDays(new Date(`${fenetre.fin}T12:00:00`), jours)),
+    };
+  }
+  return null;
+}
+
+/** La fenêtre élargie à une tranche qu'on vient de charger. */
+export function etendreFenetre(
+  fenetre: FenetreDates,
+  ajout: FenetreDates
+): FenetreDates {
+  return {
+    debut: ajout.debut < fenetre.debut ? ajout.debut : fenetre.debut,
+    fin: ajout.fin > fenetre.fin ? ajout.fin : fenetre.fin,
+  };
+}
+
 export type CalendarDay = {
   iso: string;
   /** "L", "M", … — initiale du jour. */

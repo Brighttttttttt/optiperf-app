@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   appliquerDeplacement,
   batchSummary,
+  etendreFenetre,
+  fenetreAutour,
+  fenetreManquante,
   peutDeplacer,
   peutSupprimer,
   planningCalendar,
@@ -178,6 +181,78 @@ describe("appliquerDeplacement", () => {
 
   it("ne fait rien d'un identifiant inconnu", () => {
     expect(appliquerDeplacement(seances, "zzz", "2026-08-09")).toEqual(seances);
+  });
+});
+
+describe("fenetreAutour", () => {
+  it("couvre huit semaines de part et d'autre", () => {
+    expect(fenetreAutour(NOW)).toEqual({
+      debut: "2026-06-10",
+      fin: "2026-09-30",
+    });
+  });
+});
+
+describe("fenetreManquante", () => {
+  const fenetre = fenetreAutour(NOW);
+
+  it("ne demande rien pour une semaine déjà couverte", () => {
+    expect(fenetreManquante(fenetre, startOfWeek(NOW))).toBeNull();
+    // Une semaine entièrement dans la fenêtre, loin des bords.
+    expect(
+      fenetreManquante(fenetre, new Date("2026-07-06T12:00:00+02:00"))
+    ).toBeNull();
+  });
+
+  it("réclame la tranche antérieure quand on remonte trop loin", () => {
+    // Le cas réel : une séance importée du 21 mai, hors fenêtre, sur laquelle
+    // la vue affichait « Rien de prévu ce jour-là » (#141).
+    const manque = fenetreManquante(
+      fenetre,
+      startOfWeek(new Date("2026-05-21T12:00:00+02:00"))
+    );
+    expect(manque).toEqual({ debut: "2026-04-15", fin: "2026-06-09" });
+    // La tranche touche la fenêtre sans la recouvrir : pas de trou, pas de
+    // séance ramenée deux fois.
+    expect(manque!.fin < fenetre.debut).toBe(true);
+    expect(manque!.debut <= "2026-05-21").toBe(true);
+  });
+
+  it("réclame la tranche suivante quand on avance trop loin", () => {
+    const manque = fenetreManquante(
+      fenetre,
+      new Date("2026-10-05T12:00:00+02:00")
+    );
+    expect(manque).toEqual({ debut: "2026-10-01", fin: "2026-11-25" });
+  });
+
+  it("réclame dès qu'un seul jour de la semaine dépasse", () => {
+    // Semaine du 28 septembre : elle finit le 4 octobre, la fenêtre s'arrête
+    // au 30 septembre. Trois jours manquent, donc la semaine est incomplète —
+    // et une semaine incomplète affichée comme entière est le défaut même.
+    expect(
+      fenetreManquante(fenetre, new Date("2026-09-28T12:00:00+02:00"))
+    ).not.toBeNull();
+  });
+});
+
+describe("etendreFenetre", () => {
+  it("recule le début sans toucher à la fin", () => {
+    expect(
+      etendreFenetre(
+        { debut: "2026-06-10", fin: "2026-09-30" },
+        { debut: "2026-04-15", fin: "2026-06-09" }
+      )
+    ).toEqual({ debut: "2026-04-15", fin: "2026-09-30" });
+  });
+
+  it("ne rétrécit jamais", () => {
+    expect(
+      etendreFenetre(
+        { debut: "2026-06-10", fin: "2026-09-30" },
+        { debut: "2026-07-01", fin: "2026-07-31" }
+      )
+    ).toEqual({ debut: "2026-06-10", fin: "2026-09-30" });
   });
 });
 

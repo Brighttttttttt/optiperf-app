@@ -16,13 +16,16 @@ import { ExercisesList } from "./ExercisesList";
 import { addDays, formatDayLong, formatDuration, toISODate } from "@/lib/dates";
 import {
   appliquerDeplacement,
+  etendreFenetre,
+  fenetreManquante,
   peutDeplacer,
   planningState,
   startOfWeek,
   weekDays,
   weekLabel,
+  type FenetreDates,
 } from "@/lib/planning";
-import { moveSession } from "@/app/(app)/actions";
+import { chargerPlanning, moveSession } from "@/app/(app)/actions";
 import { rpeBand, RPE_BG } from "@/lib/rpe";
 import type { AnalyseSeance } from "@/lib/analyse-seance";
 import {
@@ -66,6 +69,7 @@ type Deplacement = {
 export function WeekPlanner({
   athleteId,
   sessions,
+  fenetre,
   blocksBySession = {},
   exercisesBySession = {},
   logsBySession = {},
@@ -74,6 +78,12 @@ export function WeekPlanner({
 }: {
   athleteId: string;
   sessions: TrainingSession[];
+  /**
+   * La période que `sessions` couvre réellement. Elle vient de la page et non
+   * des données : une fenêtre sans aucune séance n'a pas de bornes qu'on
+   * puisse déduire, et c'est précisément le cas où se tromper coûte cher.
+   */
+  fenetre: FenetreDates;
   blocksBySession?: Record<string, WorkoutBlock[]>;
   exercisesBySession?: Record<string, Exercise[]>;
   logsBySession?: Record<string, ExerciseLog[]>;
@@ -85,10 +95,45 @@ export function WeekPlanner({
   const [monday, setMonday] = useState(() => startOfWeek(today));
   const [selected, setSelected] = useState<string | null>(toISODate(today));
 
+  /**
+   * Ce qui a été ramené pour les semaines hors de la fenêtre initiale (#141).
+   *
+   * Gardé à part des props plutôt que fusionné dedans : les props se
+   * renouvellent à chaque revalidation du serveur, et un état qui les
+   * recopierait perdrait ce qu'on est allé chercher.
+   */
+  const [charge, setCharge] = useState<{
+    fenetre: FenetreDates;
+    sessions: TrainingSession[];
+    blocks: Record<string, WorkoutBlock[]>;
+    exercises: Record<string, Exercise[]>;
+    logs: Record<string, ExerciseLog[]>;
+    analyses: Record<string, AnalyseSeance>;
+  }>(() => ({
+    fenetre,
+    sessions: [],
+    blocks: {},
+    exercises: {},
+    logs: {},
+    analyses: {},
+  }));
+  const [chargement, setChargement] = useState(false);
+  /** Les demandes déjà parties, pour n'en jamais rejouer une à l'identique. */
+  const demandees = useRef(new Set<string>());
+
+  const toutes = useMemo(
+    () => [...sessions, ...charge.sessions],
+    [sessions, charge.sessions]
+  );
+  const tousBlocs = { ...blocksBySession, ...charge.blocks };
+  const tousExercices = { ...exercisesBySession, ...charge.exercises };
+  const tousLogs = { ...logsBySession, ...charge.logs };
+  const toutesAnalyses = { ...analysesBySession, ...charge.analyses };
+
   // La carte suit le doigt avant que le serveur ait répondu : un aller-retour
   // réseau au milieu d'un glissement se lit comme un raté du geste.
   const [seances, deplacerOptimiste] = useOptimistic(
-    sessions,
+    toutes,
     (etat: TrainingSession[], m: { id: string; date: string }) =>
       appliquerDeplacement(etat, m.id, m.date)
   );
@@ -138,8 +183,45 @@ export function WeekPlanner({
    * affichée — on croit lire la semaine qu'on regarde, et c'est une autre.
    */
   function changerSemaine(decalage: number) {
-    setMonday(addDays(monday, decalage));
+    const suivant = addDays(monday, decalage);
+    setMonday(suivant);
     if (selected) setSelected(toISODate(addDays(new Date(`${selected}T12:00:00`), decalage)));
+    void completerFenetre(suivant);
+  }
+
+  /**
+   * Va chercher les séances de la semaine demandée si elle sort de ce qui est
+   * déjà chargé.
+   *
+   * Déclenché par le geste et non par un effet : c'est la navigation qui
+   * révèle le manque, et un effet qui poserait un état à chaque rendu est
+   * précisément ce que la règle `react-hooks/set-state-in-effect` interdit.
+   */
+  async function completerFenetre(lundi: Date) {
+    const manque = fenetreManquante(charge.fenetre, lundi);
+    if (!manque) return;
+
+    // Une même tranche ne se redemande pas, même si elle n'a rien rendu : une
+    // période réellement vide doit le rester sans rejouer la requête à chaque
+    // aller-retour entre deux semaines.
+    const cle = `${manque.debut}→${manque.fin}`;
+    if (demandees.current.has(cle)) return;
+    demandees.current.add(cle);
+
+    setChargement(true);
+    try {
+      const recu = await chargerPlanning(athleteId, manque.debut, manque.fin);
+      setCharge((etat) => ({
+        fenetre: etendreFenetre(etat.fenetre, manque),
+        sessions: [...etat.sessions, ...(recu?.sessions ?? [])],
+        blocks: { ...etat.blocks, ...(recu?.blocksBySession ?? {}) },
+        exercises: { ...etat.exercises, ...(recu?.exercisesBySession ?? {}) },
+        logs: { ...etat.logs, ...(recu?.logsBySession ?? {}) },
+        analyses: { ...etat.analyses, ...(recu?.analysesBySession ?? {}) },
+      }));
+    } finally {
+      setChargement(false);
+    }
   }
 
   function deplacer(s: TrainingSession, date: string) {
@@ -185,7 +267,13 @@ export function WeekPlanner({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      {/* Estompée le temps que la période revienne : les pastilles d'une
+          semaine encore inconnue diraient « aucune séance » avec l'aplomb
+          d'une semaine réellement vide. */}
+      <div
+        aria-busy={chargement}
+        className={`grid grid-cols-7 gap-1 transition-opacity ${chargement ? "opacity-40" : ""}`}
+      >
         {days.map((day) => {
           const daySessions = byDay.get(day.iso) ?? [];
           const isSelected = selected === day.iso;
@@ -256,10 +344,13 @@ export function WeekPlanner({
         <div className="mt-3 space-y-2">
           {selectedSessions.length === 0 ? (
             <div className="rounded-xl border border-dashed border-line px-4 py-4 text-center">
+              {/* Tant que la période n'est pas revenue, ce jour n'est pas
+                  vide : il est inconnu. Les confondre est exactement le
+                  défaut qu'on corrige (#141). */}
               <p className="text-[13px] text-ink-soft">
-                Rien de prévu ce jour-là.
+                {chargement ? "Chargement…" : "Rien de prévu ce jour-là."}
               </p>
-              {canPlan && (
+              {canPlan && !chargement && (
                 <Link
                   href={`/planifier?athlete=${athleteId}&date=${selected}`}
                   className={`${btnGhost} mt-2.5`}
@@ -272,8 +363,8 @@ export function WeekPlanner({
           ) : (
             selectedSessions.map((s) => {
               const etat = planningState(s, today);
-              const blocs = blocksBySession[s.id] ?? [];
-              const exercices = exercisesBySession[s.id] ?? [];
+              const blocs = tousBlocs[s.id] ?? [];
+              const exercices = tousExercices[s.id] ?? [];
               const deplacable = canPlan && peutDeplacer(s);
               return (
                 <div
@@ -364,7 +455,7 @@ export function WeekPlanner({
                       <WorkoutBlocksList blocks={blocs} />
                       <ExercisesList
                         exercises={exercices}
-                        logs={logsBySession[s.id] ?? []}
+                        logs={tousLogs[s.id] ?? []}
                       />
                     </div>
                   )}
@@ -376,15 +467,15 @@ export function WeekPlanner({
                   )}
 
                   {/* Ce que la montre a mesuré, avant d'ouvrir la séance. */}
-                  {analysesBySession[s.id] && (
+                  {toutesAnalyses[s.id] && (
                     <div className="mt-1.5 border-t border-line pt-1.5">
-                      {analysesBySession[s.id].structure && (
+                      {toutesAnalyses[s.id].structure && (
                         <p className="text-[13px] font-semibold text-pine">
-                          {analysesBySession[s.id].structure}
+                          {toutesAnalyses[s.id].structure}
                         </p>
                       )}
                       <p className="text-[13px] text-ink-soft">
-                        {analysesBySession[s.id].resume}
+                        {toutesAnalyses[s.id].resume}
                       </p>
                     </div>
                   )}
