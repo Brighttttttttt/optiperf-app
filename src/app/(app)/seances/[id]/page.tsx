@@ -4,16 +4,19 @@ import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
+import { AnalyseTours } from "@/components/AnalyseTours";
 import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
 import { ZoneBar } from "@/components/ZoneBar";
 import { ExercisesList } from "@/components/ExercisesList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
 import { repartitionZones } from "@/lib/zones";
+import { analyserSeance } from "@/lib/analyse-seance";
 import {
   activitySourceLabel,
   sessionTypeLabel,
   type Activity,
+  type ActivityLap,
   type ActivityTrace,
   type Exercise,
   type ExerciseLog,
@@ -88,6 +91,33 @@ export default async function SessionPage({
           .eq("activity_id", activity.id)
           .maybeSingle<ActivityTrace>()
       : { data: null };
+
+    // Les tours, d'où se déduit toute la structure de la séance. Absents
+    // d'un GPX et d'un compte rendu saisi à la main : l'analyse ne s'affiche
+    // alors pas, et la page le dit plutôt que de se taire.
+    const { data: toursData } = activity
+      ? await supabase
+          .from("activity_laps")
+          .select("position, duration_s, distance_m, avg_heart_rate")
+          .eq("activity_id", activity.id)
+          .order("position")
+      : { data: null };
+    const tours = (toursData ?? []) as Pick<
+      ActivityLap,
+      "position" | "duration_s" | "distance_m" | "avg_heart_rate"
+    >[];
+    const analyse =
+      tours.length > 0
+        ? analyserSeance(
+            tours.map((t) => ({
+              position: t.position,
+              durationS: t.duration_s,
+              distanceM: t.distance_m,
+              avgHeartRate: t.avg_heart_rate,
+            })),
+            activity?.avg_heart_rate ?? null
+          )
+        : null;
 
     const { data: logsData } =
       exercises.length > 0
@@ -168,6 +198,22 @@ export default async function SessionPage({
               <p className="mt-0.5 text-[12px] text-ink-soft">
                 {formatDayLong(activity.date)}
                 {activity.file_name && ` · ${activity.file_name}`}
+              </p>
+            </Card>
+          )}
+
+          {analyse && (
+            <Card className="p-4">
+              <AnalyseTours analyse={analyse} />
+            </Card>
+          )}
+
+          {activity && !analyse && (
+            <Card className="p-4">
+              <p className="text-[13px] text-ink-soft">
+                Ce fichier ne contient pas de tours : le détail des
+                répétitions n&apos;est pas disponible. Un export FIT ou TCX les
+                porte, un GPX jamais.
               </p>
             </Card>
           )}

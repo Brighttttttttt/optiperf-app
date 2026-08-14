@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { SessionRow } from "@/components/SessionRow";
+import { chargerAnalysesSeances } from "@/lib/session-details";
 import { TrendCharts } from "@/components/TrendCharts";
 import { weeklySeries } from "@/lib/metrics";
 import { addDays, toISODate } from "@/lib/dates";
@@ -50,6 +51,13 @@ export default async function HistoryPage() {
   ]);
 
   const sessions = (historyRes.data ?? []) as TrainingSession[];
+
+  // L'analyse de chaque séance, en deux requêtes pour toute la liste : c'est
+  // elle qui donne la structure et le résumé lisibles sans ouvrir la séance.
+  const analyses = await chargerAnalysesSeances(
+    supabase,
+    sessions.map((s) => s.id)
+  );
   const trend = (trendRes.data ?? []) as TrainingSession[];
   // Une séance peut en agréger plusieurs ; la plus récente la représente.
   const activityBySession = new Map<string, Activity>();
@@ -96,7 +104,12 @@ export default async function HistoryPage() {
               </h2>
               <Card className="divide-y divide-line">
                 {g.sessions.map((s) => (
-                  <SessionRow key={s.id} session={s} activity={activityBySession.get(s.id)} />
+                  <SessionRow
+                  key={s.id}
+                  session={s}
+                  activity={activityBySession.get(s.id)}
+                  analyse={analyses[s.id]}
+                />
                 ))}
               </Card>
             </Fragment>
