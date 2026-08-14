@@ -13,6 +13,8 @@ import {
 } from "@/lib/session-details";
 import { validerTours, validerTrace } from "@/lib/activites";
 import { trouverDoublon } from "@/lib/doublons";
+import { dechiffrer } from "@/lib/chiffrement";
+import { revoquer } from "@/lib/strava";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
@@ -1081,4 +1083,42 @@ export async function setViewMode(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect("/");
+}
+
+// ---------- Connexions aux fournisseurs d'activités ----------
+
+/**
+ * Retire l'autorisation Strava (#105).
+ *
+ * L'ordre compte : on révoque **chez Strava** avant d'effacer chez nous. Une
+ * ligne supprimée d'abord laisserait un jeton vivant qu'on ne saurait plus
+ * révoquer, et l'app resterait dans les applications autorisées de l'athlète.
+ *
+ * L'échec de la révocation n'empêche pas la suppression locale : mieux vaut
+ * une autorisation orpheline chez eux qu'un athlète qui ne peut pas partir.
+ */
+export async function deconnecterStrava(): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const { data } = await supabase
+    .from("provider_connections")
+    .select("access_token")
+    .eq("athlete_id", user.id)
+    .eq("provider", "strava")
+    .maybeSingle<{ access_token: string }>();
+
+  if (data) {
+    const jeton = await dechiffrer(data.access_token);
+    if (jeton) await revoquer(jeton);
+  }
+
+  const { error } = await supabase
+    .from("provider_connections")
+    .delete()
+    .eq("athlete_id", user.id)
+    .eq("provider", "strava");
+  if (error) return { error: "Impossible de retirer la connexion. Réessaie." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

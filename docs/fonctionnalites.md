@@ -55,6 +55,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Trace de l'activité | Fréquence cardiaque, allure et altitude au fil de la sortie, sous-échantillonnées à 400 points. | `activity_traces` (009), `ActivityTraceChart` |
 | Zones de fréquence cardiaque | Répartition du temps par zone, selon **trois méthodes** au choix de l'athlète : % FC max, % seuil (LTHR), ou réserve (Karvonen). La méthode s'affiche à côté des zones. | `zones.ts`, `ZoneBar`, migrations 010 et 017 |
 | VMA | Saisie par l'athlète seul ; le coach la consulte. | Migration 012, `VmaForm` |
+| Connexion Strava | L'athlète relie son compte Strava depuis ses réglages, et peut le délier — l'autorisation est alors révoquée **chez Strava**, pas seulement chez nous. Aucune activité n'est encore synchronisée. Le coach ne voit pas cette connexion. | Migration 019, `StravaConnection`, `src/lib/strava.ts` |
 | Vue mois | Son mois entier, une ligne par semaine, en lecture : état et contenu de chaque séance. Les flèches changent de mois ; ce qui sort de la fenêtre chargée est **allé chercher** — un jour hors fenêtre n'est jamais annoncé vide. | `/planning`, `MonthPlanner`, `chargerPlanning` |
 | Historique | Séances passées, courbes de charge et de volume **mois par mois**, quatre à six barres hebdomadaires. | `/history`, `TrendMois`, `TrendCharts` |
 
