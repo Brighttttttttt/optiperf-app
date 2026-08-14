@@ -113,6 +113,39 @@ export const PLANNING_STATE_LABEL: Record<PlanningState, string> = {
   "a-venir": "À venir",
 };
 
+/**
+ * Une séance ne se déplace que tant qu'elle est encore une prescription.
+ *
+ * Déplacer une séance faite ou manquée réécrirait un compte rendu : l'athlète
+ * a couru un jour donné, et ce jour-là ne se corrige pas d'un glissement de
+ * doigt. C'est la même frontière que le trigger `enforce_session_ownership`
+ * (migration 002), rappelée ici parce que le geste est trop facile pour
+ * n'être retenu que par l'affichage.
+ */
+export function peutDeplacer(session: Pick<SessionRef, "status">): boolean {
+  return session.status === "planned";
+}
+
+type SessionRef = { id: string; date: string; status: SessionStatus };
+
+/**
+ * Applique un déplacement à une liste de séances, sans la muter.
+ *
+ * Sert d'abord à l'affichage optimiste : la carte suit le doigt avant que le
+ * serveur ait répondu. La règle ci-dessus est appliquée ici aussi, pour que
+ * rien ne bouge à l'écran qui serait refusé à l'enregistrement — un retour en
+ * arrière une seconde plus tard se lit comme un bug.
+ */
+export function appliquerDeplacement<T extends SessionRef>(
+  sessions: T[],
+  id: string,
+  date: string
+): T[] {
+  return sessions.map((s) =>
+    s.id === id && peutDeplacer(s) ? { ...s, date } : s
+  );
+}
+
 /** "3 séances" / "1 séance" — accord automatique. */
 export function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count > 1 ? plural : singular}`;

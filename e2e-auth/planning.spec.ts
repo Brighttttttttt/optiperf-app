@@ -78,11 +78,15 @@ test("la semaine montre le contenu et l'état des séances, côté coach et côt
   await expect(carteAthlete.getByText("4 × Intervalle")).toBeVisible();
 
   // L'athlète ne prescrit pas depuis cette vue : ni « Modifier », qui ouvre
-  // le formulaire de prescription, ni les entrées de planification.
+  // le formulaire de prescription, ni les entrées de planification, ni la
+  // poignée de déplacement — déplacer une séance, c'est prescrire.
   await expect(carteAthlete.getByRole("link", { name: "Modifier" })).toBeHidden();
   await expect(
     pageAthlete.getByRole("link", { name: /Ajouter une séance ce jour/ })
   ).toBeHidden();
+  await expect(
+    pageAthlete.getByRole("button", { name: /^Déplacer/ })
+  ).toHaveCount(0);
 
   await pageAthlete.close();
 });
@@ -121,4 +125,62 @@ test("le jour ouvert suit le changement de semaine", async ({ page }) => {
   // Toujours exactement un jour ouvert, et il appartient à la grille visible.
   await expect(jourOuvert).toHaveCount(1);
   expect(await jourOuvert.getAttribute("aria-label")).not.toBe(avant);
+});
+
+test("le coach déplace une séance d'un jour, au clavier", async ({ page }) => {
+  // Connexion, planification, navigation vers la fiche puis vérification
+  // après rechargement : plus d'étapes que le budget par défaut en CI.
+  test.setTimeout(60_000);
+
+  await seConnecter(page, "coach@example.com");
+
+  const titre = `Deplacement e2e ${crypto.randomUUID().slice(0, 8)}`;
+  await page.goto("/planifier");
+  await page.getByLabel("Titre").fill(titre);
+  await page.getByRole("button", { name: "Nino Rossi" }).click();
+  await page.locator('button[aria-label^="20"]').first().click();
+  await page.getByRole("button", { name: /Planifier \d+ séance/ }).click();
+  await expect(page).toHaveURL(/planifiees=1/);
+
+  await page.getByRole("link", { name: "Nino Rossi" }).click();
+  await page.getByRole("link", { name: "Planning" }).click();
+
+  const jourOuvert = page.locator('button[aria-pressed="true"]');
+  const avant = await jourOuvert.getAttribute("data-jour");
+
+  // Le clavier est le seul chemin possible sans souris ni doigt : sans lui,
+  // le déplacement n'existerait que pour ceux qui peuvent viser.
+  const poignee = page.getByRole("button", {
+    name: new RegExp(`^Déplacer « ${titre}`),
+  });
+  await poignee.focus();
+  await page.keyboard.press("ArrowRight");
+
+  await expect(page.getByRole("status")).toContainText("déplacée au");
+  const apres = await jourOuvert.getAttribute("data-jour");
+  expect(apres).not.toBe(avant);
+  // La vue suit la séance plutôt que de la laisser disparaître du panneau.
+  await expect(carte(page, titre)).toBeVisible();
+
+  // Et ce n'est pas qu'un effet d'affichage optimiste : au rechargement, la
+  // séance a bien quitté son jour d'origine.
+  await page.reload();
+  await expect(carte(page, titre)).toBeHidden();
+  await page.locator(`button[data-jour="${apres}"]`).click();
+  await expect(carte(page, titre)).toBeVisible();
+});
+
+test("une séance qui n'est plus à venir ne se déplace plus", async ({ page }) => {
+  await seConnecter(page, "coach@example.com");
+  await page.getByRole("link", { name: "Léa Martin" }).click();
+  await page.getByRole("link", { name: "Planning" }).click();
+  await page.getByRole("button", { name: "Semaine précédente" }).click();
+  await page.getByRole("button", { name: /, [1-9] séance\(s\)/ }).first().click();
+
+  // Le peuplement ne laisse aucune séance encore planifiée dans le passé :
+  // toutes sont faites ou manquées. Déplacer l'une d'elles réécrirait le jour
+  // où l'athlète a couru — la poignée ne doit donc pas exister.
+  const cartes = page.locator("div.rounded-xl.bg-card");
+  await expect(cartes.first().getByText(/^(Fait|Manquée)$/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Déplacer/ })).toHaveCount(0);
 });

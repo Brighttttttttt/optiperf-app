@@ -33,7 +33,34 @@ export type ActiviteLue = {
   /** Null si le fichier ne contient ni FC, ni allure, ni altitude exploitables
    *  (ex. saisie sans montre, tapis sans GPS et sans capteur FC). */
   trace: PointTrace[] | null;
+  /** Les tours enregistrés par la montre, dans l'ordre. **Toujours vide pour
+   *  un GPX**, qui n'en contient pas : c'est une absence normale, pas une
+   *  lecture ratée. */
+  tours: TourLu[];
 };
+
+/**
+ * Un tour, c'est-à-dire ce que la montre a enregistré entre deux bips : une
+ * répétition, une récupération, un échauffement.
+ *
+ * La vitesse n'y figure pas : elle se déduit exactement de la distance et de
+ * la durée, et une valeur dérivée peut contredire celles dont elle vient.
+ */
+export type TourLu = {
+  /** Rang dans la séance, à partir de 0. */
+  position: number;
+  durationS: number;
+  distanceM: number | null;
+  avgHeartRate: number | null;
+  avgCadence: number | null;
+};
+
+/**
+ * Au-delà, ce n'est plus une séance structurée : une montre réglée au tour
+ * automatique produit un tour par kilomètre, donc une centaine sur un ultra.
+ * La borne protège l'insertion sans jamais gêner un usage réel.
+ */
+export const MAX_TOURS = 300;
 
 /** Un point de la trace d'une activité, échantillon temporel unique. */
 export type PointTrace = {
@@ -230,7 +257,8 @@ function assembler(
   secondes: number,
   distanceM: number | null,
   avgHeartRate: number | null,
-  trace: PointTrace[] | null
+  trace: PointTrace[] | null,
+  tours: TourLu[] = []
 ): LectureActivite {
   if (Number.isNaN(debut.getTime())) {
     return echec("La date de début du fichier est illisible.");
@@ -247,7 +275,44 @@ function assembler(
       distanceM: distanceM === null ? null : Math.round(distanceM),
       avgHeartRate,
       trace,
+      tours: tours.slice(0, MAX_TOURS),
     },
+  };
+}
+
+/**
+ * Normalise un tour brut, quel que soit le format d'origine.
+ *
+ * Rend null pour un tour sans durée exploitable : une montre en écrit parfois
+ * un de zéro seconde à l'arrêt, et il fausserait toute l'analyse en comptant
+ * comme une répétition.
+ */
+function tour(
+  position: number,
+  secondes: unknown,
+  distanceM: unknown,
+  fc: unknown,
+  cadence: unknown
+): TourLu | null {
+  // `unknown` plutôt que `number | null` : la même fonction sert à normaliser
+  // ce qui sort du SDK Garmin, ce qu'on tire d'un XML, et ce qu'un formulaire
+  // renvoie. Un seul endroit valide, donc un seul endroit à relire.
+  if (typeof secondes !== "number" || !Number.isFinite(secondes) || secondes <= 0) {
+    return null;
+  }
+  const borne = (v: unknown, min: number, max: number): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= min && v <= max
+      ? Math.round(v)
+      : null;
+  return {
+    position,
+    durationS: Math.round(secondes),
+    distanceM:
+      typeof distanceM === "number" && Number.isFinite(distanceM) && distanceM >= 0
+        ? Math.round(distanceM)
+        : null,
+    avgHeartRate: borne(fc, 20, 240),
+    avgCadence: borne(cadence, 0, 300),
   };
 }
 
@@ -368,12 +433,29 @@ export function lireTcx(xml: string): LectureActivite {
 
   const trace = traceDepuisPoints(tours.flatMap(trackpointsDeTour), debut);
 
+  // Chaque `<Lap>` porte déjà ses propres totaux : on les relit un par un
+  // plutôt que de redécouper la trace. `entetes` a déjà retiré les points,
+  // sans quoi chaque `DistanceMeters` de trackpoint serait pris pour un tour.
+  const detail = entetes
+    .map((t, i) =>
+      tour(
+        i,
+        nombres(balises(t, "TotalTimeSeconds"))[0],
+        nombres(balises(t, "DistanceMeters"))[0],
+        nombres(blocs(t, "AverageHeartRateBpm").flatMap((b) => balises(b, "Value")))[0],
+        nombres(balises(t, "Cadence"))[0]
+      )
+    )
+    .filter((t): t is TourLu => t !== null)
+    .map((t, i) => ({ ...t, position: i }));
+
   return assembler(
     debut,
     secondes,
     distances.length > 0 ? distances.reduce((s, v) => s + v, 0) : null,
     moyenne(fc),
-    trace
+    trace,
+    detail
   );
 }
 
@@ -430,7 +512,15 @@ function lireFit(stream: Stream): LectureActivite {
     debut
   );
 
-  return assembler(debut, secondes, distanceM, avgHeartRate, trace);
+  // Les tours, gardés cette fois : jusqu'ici ils ne servaient qu'à totaliser.
+  const detail = laps
+    .map((l, i) =>
+      tour(i, l.totalElapsedTime, l.totalDistance, l.avgHeartRate, l.avgCadence)
+    )
+    .filter((t): t is TourLu => t !== null)
+    .map((t, i) => ({ ...t, position: i }));
+
+  return assembler(debut, secondes, distanceM, avgHeartRate, trace, detail);
 }
 
 /**
@@ -522,4 +612,35 @@ export function validerTrace(brut: string): PointTrace[] {
       };
     })
     .filter((p): p is PointTrace => p !== null);
+}
+
+/**
+ * Revalide côté serveur les tours produits par le navigateur, sur le même
+ * principe que `validerTrace` : ce que l'action serveur reçoit n'est que ce
+ * qui a été affiché à l'athlète, mais un formulaire se manipule.
+ *
+ * Un tour mal formé est écarté, pas l'import entier — un fichier reste
+ * importable sans son détail, comme un GPX l'est sans tours. Les positions
+ * sont renumérotées après filtrage, sinon un trou ferait passer deux
+ * répétitions consécutives pour espacées.
+ */
+export function validerTours(brut: string): TourLu[] {
+  if (!brut) return [];
+  let donnees: unknown;
+  try {
+    donnees = JSON.parse(brut);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(donnees)) return [];
+
+  return donnees
+    .slice(0, MAX_TOURS)
+    .map((t): TourLu | null => {
+      if (typeof t !== "object" || t === null) return null;
+      const o = t as Record<string, unknown>;
+      return tour(0, o.durationS, o.distanceM, o.avgHeartRate, o.avgCadence);
+    })
+    .filter((t): t is TourLu => t !== null)
+    .map((t, i) => ({ ...t, position: i }));
 }

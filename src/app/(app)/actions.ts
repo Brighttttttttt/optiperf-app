@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
 import { LIMITS } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
-import { validerTrace } from "@/lib/activites";
+import { validerTours, validerTrace } from "@/lib/activites";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
@@ -225,6 +225,46 @@ export async function updateSession(
   redirect(athleteId ? `/athletes/${athleteId}` : "/");
 }
 
+/**
+ * Déplace une séance d'un jour à l'autre, sans rien toucher d'autre.
+ *
+ * Appelée depuis la vue semaine par un glisser-déposer ou une flèche du
+ * clavier — d'où des arguments simples plutôt qu'un `FormData` : il n'y a pas
+ * de formulaire derrière ce geste.
+ *
+ * Le `status = 'planned'` est répété ici alors que l'affichage l'impose déjà
+ * (`peutDeplacer`) : un geste aussi facile ne doit pas dépendre de l'état de
+ * l'interface au moment du clic. La RLS dit qui peut écrire, le trigger
+ * `enforce_session_ownership` empêche un athlète de déplacer la prescription
+ * de son coach, et cette clause empêche de réécrire le jour d'un compte
+ * rendu déjà déposé.
+ */
+export async function moveSession(
+  sessionId: string,
+  date: string
+): Promise<ActionState> {
+  const { supabase } = await requireUser();
+  if (!sessionId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: "Déplacement impossible." };
+  }
+
+  const { error, count } = await supabase
+    .from("sessions")
+    .update({ date }, { count: "exact" })
+    .eq("id", sessionId)
+    .eq("status", "planned");
+
+  if (error) return { error: "Déplacement impossible. Réessaie." };
+  // Zéro ligne touchée : la séance a été faite, ou elle ne nous appartient
+  // pas. Le dire, plutôt que laisser la carte revenir en place sans raison.
+  if (!count) {
+    return { error: "Seule une séance encore à venir peut être déplacée." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function deleteTemplate(formData: FormData) {
   const { supabase } = await requireUser();
   const id = String(formData.get("template_id") ?? "");
@@ -330,6 +370,56 @@ export async function deleteSession(formData: FormData) {
   if (!id) return;
   await supabase.from("sessions").delete().eq("id", id);
   revalidatePath("/", "layout");
+}
+
+// ---------- Note du coach ----------
+
+/**
+ * Écrit, remplace ou efface la note libre du coach sur un athlète.
+ *
+ * Une seule action pour les trois cas : le formulaire est un carnet, pas un
+ * cycle création / édition / suppression. Vider le champ et enregistrer est la
+ * façon naturelle d'effacer une note — inutile d'exiger un second geste.
+ *
+ * La RLS (migration 015) fait tout le contrôle d'accès : `coach_id` doit être
+ * l'utilisateur et `athlete_id` l'un de ses athlètes. Rien n'est revérifié
+ * ici, ce serait une seconde vérité à maintenir.
+ */
+export async function saveCoachNote(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+  const athleteId = String(formData.get("athlete_id") ?? "");
+  if (!athleteId) return { error: "Athlète introuvable." };
+
+  const content = optionalText(formData, "content", LIMITS.notes);
+  if (content === undefined) return tooLong("La note", LIMITS.notes);
+
+  if (content === null) {
+    const { error } = await supabase
+      .from("coach_notes")
+      .delete()
+      .eq("coach_id", user.id)
+      .eq("athlete_id", athleteId);
+    if (error) return { error: "Impossible d'effacer la note." };
+  } else {
+    // `upsert` sur la contrainte d'unicité (coach, athlète) : une note par
+    // paire, réécrite en place plutôt qu'empilée.
+    const { error } = await supabase.from("coach_notes").upsert(
+      {
+        coach_id: user.id,
+        athlete_id: athleteId,
+        content,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "coach_id,athlete_id" }
+    );
+    if (error) return { error: "Impossible d'enregistrer la note." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 // ---------- Objectifs ----------
@@ -643,6 +733,23 @@ export async function importActivity(
       pace_sec_per_km: points.map((p) => p.paceSecPerKm),
       altitude_m: points.map((p) => p.altitudeM),
     });
+  }
+
+  // Les tours, même règle : ils enrichissent l'activité sans la conditionner.
+  // Un GPX n'en a jamais, et une séance sans eux reste parfaitement valide.
+  const tours = validerTours(String(formData.get("tours") ?? ""));
+  if (tours.length > 0) {
+    await supabase.from("activity_laps").insert(
+      tours.map((t) => ({
+        activity_id: activite.id,
+        athlete_id: user.id,
+        position: t.position,
+        duration_s: t.durationS,
+        distance_m: t.distanceM,
+        avg_heart_rate: t.avgHeartRate,
+        avg_cadence: t.avgCadence,
+      }))
+    );
   }
 
   // Rattachement : soit une séance existante que l'athlète a désignée, soit

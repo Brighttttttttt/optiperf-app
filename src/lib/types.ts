@@ -140,6 +140,19 @@ export type Objective = {
   created_at: string;
 };
 
+/**
+ * Note libre du coach sur un athlète (migration 015). Invisible pour
+ * l'athlète : la RLS ne lui écrit aucune politique.
+ */
+export type CoachNote = {
+  id: string;
+  coach_id: string;
+  athlete_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Message = {
   id: string;
   sender_id: string;
@@ -200,6 +213,24 @@ export type ActivityTrace = {
   heart_rate: (number | null)[] | null;
   pace_sec_per_km: (number | null)[] | null;
   altitude_m: (number | null)[] | null;
+  created_at: string;
+};
+
+/**
+ * Un tour d'une activité importée (migration 016) : ce que la montre a
+ * enregistré entre deux bips. Une ligne par tour, contrairement à la trace —
+ * une séance en compte une vingtaine, pas sept mille points.
+ *
+ * Absent d'un GPX, qui ne contient pas de tours.
+ */
+export type ActivityLap = {
+  activity_id: string;
+  athlete_id: string;
+  position: number;
+  duration_s: number;
+  distance_m: number | null;
+  avg_heart_rate: number | null;
+  avg_cadence: number | null;
   created_at: string;
 };
 

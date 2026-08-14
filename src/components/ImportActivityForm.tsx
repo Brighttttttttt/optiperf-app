@@ -122,6 +122,15 @@ export function ImportActivityForm({
               {lue.avgHeartRate !== null && ` · ${lue.avgHeartRate} bpm`}
             </p>
             <p className="mt-0.5 text-[12px] text-ink-soft truncate">{lue.fileName}</p>
+            {/* Les tours décident de ce que le coach pourra lire : le dire ici,
+                avant l'enregistrement, plutôt que de laisser l'athlète
+                découvrir une séance sans détail. Un GPX n'en a jamais — c'est
+                une propriété du format, pas un fichier abîmé. */}
+            <p className="mt-1.5 text-[12px] text-ink-soft">
+              {lue.tours.length > 0
+                ? `${lue.tours.length} tour${lue.tours.length > 1 ? "s" : ""} détecté${lue.tours.length > 1 ? "s" : ""} — le détail de tes répétitions sera visible.`
+                : "Aucun tour dans ce fichier : dépose un FIT ou un TCX pour voir le détail de tes répétitions."}
+            </p>
           </div>
 
           <input type="hidden" name="external_id" value={lue.externalId} />
@@ -135,6 +144,11 @@ export function ImportActivityForm({
             type="hidden"
             name="trace"
             value={lue.trace ? JSON.stringify(lue.trace) : ""}
+          />
+          <input
+            type="hidden"
+            name="tours"
+            value={lue.tours.length > 0 ? JSON.stringify(lue.tours) : ""}
           />
 
           {candidates.length > 0 && (

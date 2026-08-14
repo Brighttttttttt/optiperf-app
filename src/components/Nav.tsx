@@ -133,9 +133,20 @@ export function Nav({
     // est la ressource abondante. `sticky` plutôt que `fixed` au-delà de
     // `md` : la colonne appartient alors au flux, et le contenu n'a plus à
     // réserver de place sous lui.
+    //
+    // Les deux mises en page sont écrites dans des variantes exclusives
+    // (`max-md:` / `md:`) plutôt qu'en surcharge, parce que la surcharge s'est
+    // révélée fausse : deux positions étaient déclarées au même palier, et
+    // c'est la dernière émise par Tailwind — non la dernière écrite ici — qui
+    // l'emportait, tandis que le décalage horizontal du téléphone n'était
+    // neutralisé nulle part. La contrainte horizontale du positionnement
+    // collant déportait alors la colonne au milieu du contenu où, transparente,
+    // elle absorbait les clics sur une bande pleine hauteur. Deux jeux
+    // disjoints ne peuvent pas se contredire : aucune propriété n'est posée
+    // des deux côtés.
     <nav
       aria-label="Navigation principale"
-      className="fixed bottom-0 left-1/2 z-10 w-full max-w-md -translate-x-1/2 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:static md:h-dvh md:w-52 md:shrink-0 md:translate-x-0 md:self-start md:border-t-0 md:border-r md:bg-transparent md:pb-0 md:pt-6 md:sticky md:top-0"
+      className="z-10 border-line max-md:fixed max-md:bottom-0 max-md:left-1/2 max-md:w-full max-md:max-w-md max-md:-translate-x-1/2 max-md:border-t max-md:bg-card/95 max-md:pb-[env(safe-area-inset-bottom)] max-md:backdrop-blur md:sticky md:top-0 md:h-dvh md:w-52 md:shrink-0 md:self-start md:border-r md:pt-6"
     >
       {/* Classes écrites en toutes lettres : Tailwind ne voit pas une classe
           construite à la volée. */}

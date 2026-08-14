@@ -4,6 +4,11 @@ Vue d'ensemble, volontairement simple. Les détails et les pièges vivent dans
 [CLAUDE.md](../CLAUDE.md) ; les conventions de travail dans
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+Ce document explique **pourquoi** le projet est fait ainsi. Pour ce qui existe
+et où, va aux références : [fonctionnalites.md](fonctionnalites.md),
+[parcours.md](parcours.md), [donnees.md](donnees.md). Pour les gestes courants,
+[guides.md](guides.md). L'index complet est dans [docs/](README.md).
+
 ## En une phrase
 
 Une app web mobile-first où un coach planifie des séances et où ses athlètes
@@ -84,7 +89,9 @@ flowchart LR
    à part, avec sa propre URL.
 4. **La CI doit être verte** pour pouvoir fusionner.
 5. **Merge squash** : la PR devient **un seul commit** sur `master`. Son message
-   est le titre + la description de la PR — c'est pour ça qu'on les soigne.
+   est le titre + la description de la PR — c'est pour ça qu'on les soigne, et
+   pourquoi ce sont les seuls textes du projet écrits en **anglais**, au format
+   Conventional Commits (voir [CONTRIBUTING.md](../CONTRIBUTING.md)).
 6. **Vercel déploie la production**, puis un second workflow va vérifier le site
    réellement en ligne.
 
