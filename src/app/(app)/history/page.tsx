@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
@@ -81,6 +82,14 @@ export default async function HistoryPage() {
       <PageHeader
         eyebrow={`${sessions.length} séance${sessions.length > 1 ? "s" : ""}`}
         title="Historique"
+        action={
+          <Link
+            href="/activites"
+            className="shrink-0 text-[13px] font-semibold text-pine hover:underline"
+          >
+            Fichiers importés
+          </Link>
+        }
       />
       <div className="px-5 space-y-4">
         {trend.length > 0 && (
