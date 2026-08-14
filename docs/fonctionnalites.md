@@ -30,6 +30,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Modèles de séances | Garder une séance récurrente et la rappeler d'un tap. | `session_templates` (003), `TemplateList` |
 | Séance running structurée | Découper en blocs : échauffement, intervalle (avec répétitions), récupération, retour au calme. | `workout_blocks` (011), `WorkoutBlocksEditor` |
 | Séance de musculation | Prescrire des exercices : séries, répétitions, charge, repos. | `exercises` (013), `ExercisesEditor` |
+| Analyse de séance | Lit la structure réelle d'une sortie depuis ses tours : `7×1km`, `2×(4×400m)`, `6×1'30"`, avec l'allure de chaque répétition, la récupération et la tendance. Pur calcul, rien n'est stocké. | `src/lib/analyse-seance.ts` |
 | Déplacer une séance | Glisser une séance d'un jour à l'autre dans la vue semaine, au doigt, à la souris ou aux flèches. Une séance faite ne bouge pas. | `WeekPlanner`, `moveSession` |
 | Objectifs | Une échéance nommée, visible de l'athlète. | `objectives` (001), `ObjectiveForm` |
 | Records personnels | Consigner un record par distance standard. Saisissable par le coach **et** par l'athlète. | `personal_records` (012), `RecordsForm` |
