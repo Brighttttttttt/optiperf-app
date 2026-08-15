@@ -4,7 +4,10 @@ import { withSecurityHeaders } from "@/lib/security-headers";
 
 // Les routes /auth/* reçoivent les liens d'email : elles doivent rester
 // accessibles sans session, puisque ce sont elles qui l'ouvrent.
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
+// `/confidentialite` doit se lire sans compte : c'est l'adresse qu'on
+// donne à qui hésite à s'inscrire, et celle que réclament les programmes
+// d'API des fabricants de montres.
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/", "/confidentialite"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
