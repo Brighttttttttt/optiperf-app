@@ -5,15 +5,35 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/session";
-import { LIMITS } from "@/lib/types";
+import { activitySourceLabel, LIMITS, type Activity } from "@/lib/types";
 import { MAX_BATCH_SESSIONS } from "@/lib/planning";
+import {
+  chargerFenetrePlanning,
+  type FenetrePlanning,
+} from "@/lib/session-details";
 import { validerTours, validerTrace } from "@/lib/activites";
+import { trouverDoublon } from "@/lib/doublons";
+import { dechiffrer } from "@/lib/chiffrement";
+import { revoquer } from "@/lib/strava";
 import { validerBlocs } from "@/lib/blocks";
 import { parseDurationInput, RECORD_DISTANCE_VALUES } from "@/lib/records";
 import { validerExercices, validerExerciseLogs } from "@/lib/exercises";
 import { VIEW_MODE_COOKIE, VIEW_MODE_MAX_AGE } from "@/lib/view-mode";
+import {
+  methodeCalculable,
+  METHODES_ZONES,
+  type MethodeZones,
+} from "@/lib/zones";
 
-export type ActionState = { error?: string; ok?: boolean } | null;
+export type ActionState = {
+  error?: string;
+  ok?: boolean;
+  /**
+   * Le refus est un rapprochement, pas une règle : l'appelant doit pouvoir
+   * proposer de passer outre (#107). Un `error` seul se lit comme définitif.
+   */
+  doublon?: boolean;
+} | null;
 
 async function requireUser() {
   const supabase = await createClient();
@@ -265,6 +285,32 @@ export async function moveSession(
   return { ok: true };
 }
 
+/**
+ * Les séances d'une période plus ancienne (ou plus lointaine) que la fenêtre
+ * initiale de la vue semaine.
+ *
+ * La vue charge ±8 semaines d'emblée pour naviguer sans attendre le serveur.
+ * Au-delà, elle affichait des jours vides indistinguables de jours libres —
+ * une séance importée d'une sortie d'il y a trois mois n'apparaissait nulle
+ * part dans le planning (#141). Elle vient donc la chercher, et seulement
+ * pour ce qui n'a jamais été chargé.
+ *
+ * Aucun contrôle d'accès ici : la RLS ne rend que les séances du compte ou de
+ * ses athlètes, quel que soit l'identifiant demandé.
+ */
+export async function chargerPlanning(
+  athleteId: string,
+  debut: string,
+  fin: string
+): Promise<FenetrePlanning | null> {
+  const { supabase } = await requireUser();
+  const dateValide = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+  if (!athleteId || !dateValide(debut) || !dateValide(fin) || debut > fin) {
+    return null;
+  }
+  return chargerFenetrePlanning(supabase, athleteId, debut, fin);
+}
+
 export async function deleteTemplate(formData: FormData) {
   const { supabase } = await requireUser();
   const id = String(formData.get("template_id") ?? "");
@@ -364,12 +410,41 @@ export async function missSession(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-export async function deleteSession(formData: FormData) {
+/**
+ * Supprime une séance — le geste le plus irréversible de l'app.
+ *
+ * La policy `sessions_delete` (migration 018) est seule juge : le coach sur sa
+ * prescription encore à venir, l'athlète sur ses séances libres. On ne
+ * revérifie donc rien ici, mais on **lit le nombre de lignes touchées** pour
+ * distinguer un refus d'un succès — sans quoi une suppression interdite
+ * ressemblerait à une suppression réussie.
+ *
+ * Les activités rattachées survivent (`on delete set null`, 007) : ce qu'une
+ * montre a mesuré reste vrai même sans la séance qui la portait.
+ */
+export async function deleteSession(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const { supabase } = await requireUser();
   const id = String(formData.get("session_id") ?? "");
-  if (!id) return;
-  await supabase.from("sessions").delete().eq("id", id);
+  if (!id) return { error: "Séance introuvable." };
+
+  const { error, count } = await supabase
+    .from("sessions")
+    .delete({ count: "exact" })
+    .eq("id", id);
+
+  if (error) return { error: "Suppression impossible. Réessaie." };
+  if (!count) {
+    return {
+      error:
+        "Cette séance ne peut pas être supprimée : une séance prescrite par ton coach se déclare manquée, et une séance déjà faite appartient à son compte rendu.",
+    };
+  }
+
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 // ---------- Note du coach ----------
@@ -521,9 +596,31 @@ export async function updateHeartRateRefs(
     return { error: "La FC de repos doit être inférieure à la FC max." };
   }
 
+  const lthr = nombreOuNull("lthr", 100, 220);
+  if (lthr === "invalide") {
+    return { error: "La fréquence au seuil doit être comprise entre 100 et 220 bpm." };
+  }
+  // Contrainte doublée : la base la refuserait de toute façon (017), mais son
+  // message d'erreur ne dirait rien à l'athlète.
+  if (lthr !== null && fcMax !== null && lthr >= fcMax) {
+    return { error: "La fréquence au seuil doit être inférieure à la FC max." };
+  }
+
+  const methodeBrute = String(formData.get("zone_method") ?? "fcmax");
+  const methode = METHODES_ZONES.some((m) => m.valeur === methodeBrute)
+    ? (methodeBrute as MethodeZones)
+    : "fcmax";
+
+  // Une méthode dont la donnée manque se refuse ici plutôt que d'afficher des
+  // zones vides sans explication.
+  if (!methodeCalculable(methode, { fcMax, fcRepos, lthr })) {
+    const besoin = METHODES_ZONES.find((m) => m.valeur === methode)?.besoin ?? "";
+    return { error: `Cette méthode de zones a besoin de ${besoin}.` };
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update({ fc_max: fcMax, fc_repos: fcRepos })
+    .update({ fc_max: fcMax, fc_repos: fcRepos, lthr, zone_method: methode })
     .eq("id", user.id);
   if (error) return { error: "Impossible d'enregistrer." };
 
@@ -697,36 +794,126 @@ export async function importActivity(
       : null;
   };
 
+  const mesures = {
+    file_name: fileName,
+    started_at: startedAt,
+    date,
+    duration_min: Math.round(duration),
+    distance_m: nombreOuNull("distance_m", 0, 1_000_000),
+    avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
+  };
+
+  // La même sortie sous deux formats (#107) : contenus différents, empreintes
+  // différentes, donc la contrainte SQL de 007 ne voit rien. Le rapprochement
+  // est souple par nature — on demande donc, on ne décide pas.
+  //
+  // Les activités du jour suffisent : deux enregistrements de la même sortie
+  // partagent forcément sa date, calculée à Paris de part et d'autre.
+  if (formData.get("force") !== "1") {
+    const { data: duJour } = await supabase
+      .from("activities")
+      .select("id, started_at, duration_min, file_name, source")
+      .eq("athlete_id", user.id)
+      .eq("date", date)
+      // Le redépôt du même fichier a son propre chemin, plus haut : il reprend
+      // l'activité au lieu de la signaler.
+      .neq("external_id", externalId);
+
+    const jumelle = trouverDoublon(
+      { startedAt, durationMin: Math.round(duration) },
+      ((duJour ?? []) as Pick<
+        Activity,
+        "id" | "started_at" | "duration_min" | "file_name" | "source"
+      >[]).map((a) => ({
+        ...a,
+        startedAt: a.started_at,
+        durationMin: a.duration_min,
+      }))
+    );
+
+    if (jumelle) {
+      const quoi = jumelle.file_name
+        ? `« ${jumelle.file_name} »`
+        : `un relevé ${activitySourceLabel(jumelle.source)}`;
+      return {
+        doublon: true,
+        error: `Cette sortie ressemble à ${quoi}, déjà importée à la même heure. L'enregistrer une seconde fois compterait sa charge en double.`,
+      };
+    }
+  }
+
   const { data: activite, error: erreurActivite } = await supabase
     .from("activities")
     .insert({
       athlete_id: user.id,
       source: "fichier",
       external_id: externalId,
-      file_name: fileName,
-      started_at: startedAt,
-      date,
-      duration_min: Math.round(duration),
-      distance_m: nombreOuNull("distance_m", 0, 1_000_000),
-      avg_heart_rate: nombreOuNull("avg_heart_rate", 20, 240),
+      ...mesures,
     })
     .select("id")
     .single();
 
+  let activiteId = activite?.id as string | undefined;
+
   if (erreurActivite) {
     // 23505 : la contrainte unique (athlete_id, source, external_id).
-    if (erreurActivite.code === "23505") {
-      return { error: "Cette séance a déjà été importée." };
+    if (erreurActivite.code !== "23505") {
+      return { error: "Impossible d'enregistrer l'activité." };
     }
-    return { error: "Impossible d'enregistrer l'activité." };
+
+    // Ce fichier a déjà été déposé. Reste à savoir si son activité mène
+    // encore quelque part : `activities.session_id` est `on delete set null`
+    // (007), donc supprimer une séance laisse derrière elle une activité que
+    // plus aucun écran ne montrait — et qui interdisait pourtant de redéposer
+    // le fichier dont elle venait (#135).
+    const { data: existante } = await supabase
+      .from("activities")
+      .select("id, session_id")
+      .eq("athlete_id", user.id)
+      .eq("source", "fichier")
+      .eq("external_id", externalId)
+      .maybeSingle<{ id: string; session_id: string | null }>();
+
+    if (!existante) {
+      // Le conflit vient d'ailleurs que d'une activité qu'on puisse relire :
+      // ne rien affirmer de faux.
+      return { error: "Impossible d'enregistrer l'activité." };
+    }
+    if (existante.session_id) {
+      return {
+        error:
+          "Ce fichier est déjà rattaché à une séance de ton historique. Ouvre-la pour la corriger, ou supprime l'activité depuis « Fichiers importés ».",
+      };
+    }
+
+    // Orpheline : on la reprend plutôt que de refuser. L'athlète sait très
+    // bien qu'il redépose le même fichier — c'est justement ce qu'il veut.
+    activiteId = existante.id;
+    const { error } = await supabase
+      .from("activities")
+      .update(mesures)
+      .eq("id", existante.id);
+    if (error) return { error: "Impossible d'enregistrer l'activité." };
   }
+
+  if (!activiteId) return { error: "Impossible d'enregistrer l'activité." };
 
   // Enrichissement visuel, pas la donnée de référence : son échec ne doit
   // pas faire perdre l'activité déjà enregistrée.
+  //
+  // Sur une activité reprise, trace et tours sont **remplacés** et non
+  // ajoutés : `activity_laps` a pour clé primaire `(activity_id, position)`,
+  // un simple insert échouerait au premier tour.
   const points = validerTrace(String(formData.get("trace") ?? ""));
+  const tours = validerTours(String(formData.get("tours") ?? ""));
+  if (erreurActivite) {
+    await supabase.from("activity_traces").delete().eq("activity_id", activiteId);
+    await supabase.from("activity_laps").delete().eq("activity_id", activiteId);
+  }
+
   if (points.length > 0) {
     await supabase.from("activity_traces").insert({
-      activity_id: activite.id,
+      activity_id: activiteId,
       athlete_id: user.id,
       t_s: points.map((p) => p.tOffsetS),
       heart_rate: points.map((p) => p.heartRate),
@@ -737,11 +924,10 @@ export async function importActivity(
 
   // Les tours, même règle : ils enrichissent l'activité sans la conditionner.
   // Un GPX n'en a jamais, et une séance sans eux reste parfaitement valide.
-  const tours = validerTours(String(formData.get("tours") ?? ""));
   if (tours.length > 0) {
     await supabase.from("activity_laps").insert(
       tours.map((t) => ({
-        activity_id: activite.id,
+        activity_id: activiteId,
         athlete_id: user.id,
         position: t.position,
         duration_s: t.durationS,
@@ -808,7 +994,45 @@ export async function importActivity(
   await supabase
     .from("activities")
     .update({ session_id: seanceLiee })
-    .eq("id", activite.id);
+    .eq("id", activiteId);
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * Supprime une activité importée.
+ *
+ * `activities_delete` (migration 007) l'autorise à l'athlète seul depuis le
+ * début ; il n'y avait simplement aucune voie pour l'exercer. La trace et les
+ * tours tombent en cascade avec elle.
+ *
+ * La **séance reste** : elle porte le compte rendu de l'athlète, RPE et
+ * ressenti compris, qu'il a peut-être complété à la main depuis. Effacer le
+ * fichier déposé n'efface pas la séance qu'il documentait — l'inverse de la
+ * règle qui laisse survivre l'activité quand la séance disparaît (007), et
+ * pour la même raison : les deux ne se déduisent pas l'une de l'autre.
+ */
+export async function deleteActivity(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+  const id = String(formData.get("activity_id") ?? "");
+  if (!id) return { error: "Activité introuvable." };
+
+  // `count` plutôt que l'absence d'erreur : la RLS filtre en silence, un refus
+  // ressemblerait trait pour trait à un succès (même leçon qu'en #133).
+  const { error, count } = await supabase
+    .from("activities")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .eq("athlete_id", user.id);
+
+  if (error) return { error: "Impossible de supprimer cette activité." };
+  if (!count) {
+    return { error: "Cette activité n'existe plus, ou ne t'appartient pas." };
+  }
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -859,4 +1083,42 @@ export async function setViewMode(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect("/");
+}
+
+// ---------- Connexions aux fournisseurs d'activités ----------
+
+/**
+ * Retire l'autorisation Strava (#105).
+ *
+ * L'ordre compte : on révoque **chez Strava** avant d'effacer chez nous. Une
+ * ligne supprimée d'abord laisserait un jeton vivant qu'on ne saurait plus
+ * révoquer, et l'app resterait dans les applications autorisées de l'athlète.
+ *
+ * L'échec de la révocation n'empêche pas la suppression locale : mieux vaut
+ * une autorisation orpheline chez eux qu'un athlète qui ne peut pas partir.
+ */
+export async function deconnecterStrava(): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const { data } = await supabase
+    .from("provider_connections")
+    .select("access_token")
+    .eq("athlete_id", user.id)
+    .eq("provider", "strava")
+    .maybeSingle<{ access_token: string }>();
+
+  if (data) {
+    const jeton = await dechiffrer(data.access_token);
+    if (jeton) await revoquer(jeton);
+  }
+
+  const { error } = await supabase
+    .from("provider_connections")
+    .delete()
+    .eq("athlete_id", user.id)
+    .eq("provider", "strava");
+  if (error) return { error: "Impossible de retirer la connexion. Réessaie." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

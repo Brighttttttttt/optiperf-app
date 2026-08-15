@@ -69,12 +69,15 @@ export default async function MessagesPage() {
               title={
                 mode === "coach"
                   ? "Aucun athlète dans ton groupe"
-                  : "Tu n'es pas encore lié à un coach"
+                  : "Aucune discussion"
               }
+              // « Tu n'es pas encore lié à un coach » présentait l'absence de
+              // coach comme un état transitoire à corriger (#138). Le fait
+              // suffit, et le geste reste indiqué pour qui le cherche.
               hint={
                 mode === "coach"
                   ? "Partage ton code coach (Réglages) pour ouvrir tes premières discussions."
-                  : "Ajoute le code de ton coach dans Réglages pour discuter avec lui."
+                  : "La messagerie s'ouvre avec ton coach. Si tu en as un, saisis son code dans Réglages."
               }
             />
           </Card>

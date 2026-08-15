@@ -87,10 +87,13 @@ flowchart TD
         AP["/planning"]
         AT["/history"]
         AS["/seances/[id]"]
+        AC["/activites"]
 
         AH --> AS
         AT --> AS
         AS --> AT
+        AT --> AC
+        AC --> AS
     end
 
     subgraph commun["Partagé"]
@@ -119,6 +122,8 @@ en gardant l'onglet courant.
 | `/signup` | — | Créer un compte, choisir son rôle | `/login` | `/login`, email de confirmation |
 | `/auth/callback` | — | Ouvrir la session depuis un lien d'email | Email | `/`, `/auth/finaliser` |
 | `/auth/finaliser` | — | Lire les jetons du fragment | `/auth/callback` | `/` |
+| `/auth/strava/connexion` | Athlète | Poser le jeton anti-rejeu et partir vers Strava. Une **navigation**, jamais un formulaire : `form-action 'self'` interdirait de poster vers `strava.com` | `/settings` | strava.com |
+| `/auth/strava/callback` | Athlète | Retour d'autorisation : vérifier l'état, échanger le code, chiffrer et ranger les jetons | strava.com | `/settings?strava=…` |
 | `/` | Coach | Une carte par athlète : volume, adhérence, RPE moyen, charge, état de forme | Navigation | `/athletes/[id]`, `/planifier` |
 | `/` | Athlète | Séances à venir, saisie du réalisé, séance libre, import de montre | Navigation | `/seances/[id]` |
 | `/athletes/[id]` | Coach | Fiche : métriques 7 j, zones FC, records, **notes privées**, objectifs | Tableau de bord | Les trois autres onglets, `/planifier` |
@@ -127,12 +132,13 @@ en gardant l'onglet courant.
 | `/athletes/[id]/messagerie` | Coach | Fil de discussion avec cet athlète | Onglets, carte athlète | — |
 | `/planifier` | Coach | Prescrire : athlètes × dates en une fois, modèles, blocs, exercices | Tableau de bord, fiche, planning | `/` |
 | `/planning` | Athlète | Sa propre semaine, en lecture | Navigation | — |
-| `/history` | Athlète | Son historique et ses courbes | Navigation | `/seances/[id]` |
+| `/history` | Athlète | Son historique et ses courbes | Navigation | `/seances/[id]`, `/activites` |
+| `/activites` | Athlète | Les fichiers déposés **pour eux-mêmes** : les relire, les supprimer, retrouver ceux qu'aucune séance ne porte plus | `/history` | `/seances/[id]` |
 | `/seances/[id]` | Les deux | Détail d'une séance. **Formulaire de prescription pour le coach**, compte rendu pour l'athlète | Listes, planning, historique | `/history` ou `/athletes/[id]` selon le propriétaire |
 | `/messages` | Les deux | Liste des fils | Navigation | `/messages/[id]` |
 | `/messages/[id]` | Les deux | Fil de discussion, temps réel | `/messages` | — |
 | `/notifications` | Les deux | Ce qui s'est passé, marqué lu en bloc | Navigation | Lien porté par la notification |
-| `/settings` | Les deux | Nom, FC max/repos, records, VMA, coach, code d'invitation, suppression du compte | Navigation | — |
+| `/settings` | Les deux | Nom, FC max/repos, records, VMA, coach, **connexion Strava**, code d'invitation, suppression du compte | Navigation | — |
 
 ## Trois enchaînements qui ne vont pas de soi
 

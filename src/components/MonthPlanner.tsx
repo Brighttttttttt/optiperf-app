@@ -18,12 +18,19 @@ import {
   appliquerDeplacement,
   peutDeplacer,
   planningState,
-  startOfWeek,
-  weekDays,
-  weekLabel,
+  type FenetreDates,
 } from "@/lib/planning";
+import { useFenetrePlanning } from "./useFenetrePlanning";
+import {
+  bornesMois,
+  decalerMois,
+  grilleMois,
+  libelleMois,
+  moisDe,
+} from "@/lib/mois";
 import { moveSession } from "@/app/(app)/actions";
 import { rpeBand, RPE_BG } from "@/lib/rpe";
+import type { AnalyseSeance } from "@/lib/analyse-seance";
 import {
   sessionTypeLabel,
   type Exercise,
@@ -32,6 +39,9 @@ import {
   type WorkoutBlock,
 } from "@/lib/types";
 import { btnGhost, btnPrimary } from "@/lib/styles";
+
+/** L'initiale des sept jours, du lundi au dimanche. */
+const INITIALES_JOURS = ["L", "M", "M", "J", "V", "S", "D"];
 
 /** Le jour de la grille survolé par un pointeur, ou null s'il est ailleurs. */
 function jourSous(x: number, y: number): string | null {
@@ -48,10 +58,17 @@ type Deplacement = {
 };
 
 /**
- * Vue semaine : la grille donne la forme de la semaine d'un coup d'œil
- * (jours vides, enchaînement, intensités), le détail s'ouvre en dessous.
- * La navigation reste côté client — les séances des semaines voisines
- * sont déjà chargées.
+ * Vue mois : la grille donne la forme du mois d'un coup d'œil (jours vides,
+ * enchaînement, intensités), le détail du jour s'ouvre en dessous.
+ *
+ * Une ligne par semaine, sept colonnes : la semaine reste lisible **dans** le
+ * mois, et l'encombrement à l'écran ne change pas — c'est la même bande de
+ * jours, répétée quatre à six fois (#143). Le mois est l'unité dans laquelle
+ * on relit son entraînement : un bloc, une coupure, une reprise.
+ *
+ * La navigation reste côté client tant que le mois demandé tombe dans la
+ * fenêtre chargée ; au-delà, la vue va chercher ce qui lui manque plutôt que
+ * d'afficher un vide trompeur (#141).
  *
  * `canPlan` distingue les deux usages : le coach prescrit depuis cette vue,
  * l'athlète ne fait que lire la sienne. Un athlète n'y trouve donc aucun
@@ -62,29 +79,61 @@ type Deplacement = {
  * Les tableaux sont indexés par séance (objets simples, pas des Map : ils
  * traversent la frontière serveur → client).
  */
-export function WeekPlanner({
+export function MonthPlanner({
   athleteId,
   sessions,
+  fenetre,
   blocksBySession = {},
   exercisesBySession = {},
   logsBySession = {},
+  analysesBySession = {},
   canPlan = true,
 }: {
   athleteId: string;
   sessions: TrainingSession[];
+  /**
+   * La période que `sessions` couvre réellement. Elle vient de la page et non
+   * des données : une fenêtre sans aucune séance n'a pas de bornes qu'on
+   * puisse déduire, et c'est précisément le cas où se tromper coûte cher.
+   */
+  fenetre: FenetreDates;
   blocksBySession?: Record<string, WorkoutBlock[]>;
   exercisesBySession?: Record<string, Exercise[]>;
   logsBySession?: Record<string, ExerciseLog[]>;
+  /** Absente pour une séance sans tours (GPX, saisie à la main, à venir). */
+  analysesBySession?: Record<string, AnalyseSeance>;
   canPlan?: boolean;
 }) {
   const today = useMemo(() => new Date(), []);
-  const [monday, setMonday] = useState(() => startOfWeek(today));
-  const [selected, setSelected] = useState<string | null>(toISODate(today));
+  const aujourdhui = toISODate(today);
+  const [mois, setMois] = useState(() => moisDe(aujourdhui));
+  const [selected, setSelected] = useState<string | null>(aujourdhui);
+
+
+  const {
+    sessions: toutes,
+    blocksBySession: tousBlocs,
+    exercisesBySession: tousExercices,
+    logsBySession: tousLogs,
+    analysesBySession: toutesAnalyses,
+    chargement,
+    assurer,
+  } = useFenetrePlanning(
+    athleteId,
+    {
+      sessions,
+      blocksBySession,
+      exercisesBySession,
+      logsBySession,
+      analysesBySession,
+    },
+    fenetre
+  );
 
   // La carte suit le doigt avant que le serveur ait répondu : un aller-retour
   // réseau au milieu d'un glissement se lit comme un raté du geste.
   const [seances, deplacerOptimiste] = useOptimistic(
-    sessions,
+    toutes,
     (etat: TrainingSession[], m: { id: string; date: string }) =>
       appliquerDeplacement(etat, m.id, m.date)
   );
@@ -95,7 +144,13 @@ export function WeekPlanner({
   const [message, setMessage] = useState<string | null>(null);
   const aRefocaliser = useRef<string | null>(null);
 
-  const days = useMemo(() => weekDays(monday, today), [monday, today]);
+  const semaines = useMemo(() => grilleMois(mois, aujourdhui), [mois, aujourdhui]);
+  const jours = useMemo(() => semaines.flatMap((s) => s.jours), [semaines]);
+  /** Ce que la grille affiche réellement, débordements compris. */
+  const periode = {
+    debut: jours[0]?.iso ?? aujourdhui,
+    fin: jours[jours.length - 1]?.iso ?? aujourdhui,
+  };
   const byDay = useMemo(() => {
     const map = new Map<string, TrainingSession[]>();
     for (const s of seances) {
@@ -105,7 +160,6 @@ export function WeekPlanner({
   }, [seances]);
 
   const selectedSessions = selected ? (byDay.get(selected) ?? []) : [];
-  const isCurrentWeek = toISODate(monday) === toISODate(startOfWeek(today));
 
   /**
    * Après un déplacement au clavier, la carte change de jour donc de place
@@ -129,13 +183,27 @@ export function WeekPlanner({
   }, [seances, selected]);
 
   /**
-   * Le jour ouvert suit la semaine, au même rang qu'avant : sans cela, le
-   * panneau du bas continue de détailler un jour absent de la grille
-   * affichée — on croit lire la semaine qu'on regarde, et c'est une autre.
+   * Le jour ouvert suit le mois : sans cela, le panneau du bas continue de
+   * détailler un jour absent de la grille affichée — on croit lire le mois
+   * qu'on regarde, et c'en est un autre.
+   *
+   * Il se pose sur le **premier jour du mois**, et non sur le même quantième :
+   * un 31 n'existe pas partout, et un mois qu'on ouvre se lit du début.
+   * Aujourd'hui garde la priorité quand on revient sur le mois courant.
    */
-  function changerSemaine(decalage: number) {
-    setMonday(addDays(monday, decalage));
-    if (selected) setSelected(toISODate(addDays(new Date(`${selected}T12:00:00`), decalage)));
+  function changerMois(decalage: number) {
+    const suivant = decalerMois(mois, decalage);
+    setMois(suivant);
+    setSelected(
+      suivant === moisDe(aujourdhui) ? aujourdhui : bornesMois(suivant).debut
+    );
+    void assurer(bornesGrille(suivant));
+  }
+
+  /** Les bornes réelles de la grille d'un mois, débordements compris. */
+  function bornesGrille(moisVise: string): FenetreDates {
+    const tous = grilleMois(moisVise, aujourdhui).flatMap((sem) => sem.jours);
+    return { debut: tous[0].iso, fin: tous[tous.length - 1].iso };
   }
 
   function deplacer(s: TrainingSession, date: string) {
@@ -144,8 +212,8 @@ export function WeekPlanner({
     // La vue suit la séance : la laisser disparaître du panneau à l'instant
     // où on la déplace donnerait l'impression de l'avoir perdue.
     setSelected(date);
-    if (date < days[0].iso || date > days[6].iso) {
-      setMonday(startOfWeek(new Date(`${date}T12:00:00`)));
+    if (date < periode.debut || date > periode.fin) {
+      setMois(moisDe(date));
     }
     setMessage(`« ${s.title} » déplacée au ${formatDayLong(date)}.`);
     aRefocaliser.current = s.id;
@@ -159,30 +227,61 @@ export function WeekPlanner({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-2">
+      {/* Un groupe nommé : le libellé du mois se retrouve tel quel ailleurs
+          dans l'app (les titres de l'historique sont eux aussi « août 2026 »),
+          et sans repère les tests comme les lecteurs d'écran confondent les
+          deux. */}
+      <div
+        role="group"
+        aria-label="Mois affiché"
+        className="flex items-center justify-between gap-2 mb-2"
+      >
         <button
           type="button"
-          aria-label="Semaine précédente"
-          onClick={() => changerSemaine(-7)}
+          aria-label="Mois précédent"
+          onClick={() => changerMois(-1)}
           className="p-1.5 -ml-1.5 rounded-full text-ink-soft hover:bg-line/60"
         >
           <IconChevronLeft className="size-5" />
         </button>
-        <p className="text-[13px] font-semibold text-ink-soft text-center first-letter:uppercase">
-          {isCurrentWeek ? "Cette semaine" : weekLabel(monday)}
+        <p
+          aria-live="polite"
+          className="text-[13px] font-semibold text-ink-soft text-center first-letter:uppercase"
+        >
+          {libelleMois(mois)}
         </p>
         <button
           type="button"
-          aria-label="Semaine suivante"
-          onClick={() => changerSemaine(7)}
+          aria-label="Mois suivant"
+          onClick={() => changerMois(1)}
           className="p-1.5 -mr-1.5 rounded-full text-ink-soft hover:bg-line/60"
         >
           <IconChevronRight className="size-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
-        {days.map((day) => {
+      {/* Les initiales de jours, une fois pour toutes les lignes : sur une
+          grille mensuelle, les répéter à chaque semaine ferait cinq fois le
+          même bandeau. */}
+      <div className="grid grid-cols-7 gap-1 mb-1" aria-hidden="true">
+        {INITIALES_JOURS.map((initiale, i) => (
+          <span
+            key={i}
+            className="text-center text-[10px] uppercase text-ink-soft"
+          >
+            {initiale}
+          </span>
+        ))}
+      </div>
+
+      {/* Estompée le temps que la période revienne : les pastilles d'un mois
+          encore inconnu diraient « aucune séance » avec l'aplomb d'un mois
+          réellement vide. */}
+      <div
+        aria-busy={chargement}
+        className={`grid grid-cols-7 gap-1 transition-opacity ${chargement ? "opacity-40" : ""}`}
+      >
+        {jours.map((day) => {
           const daySessions = byDay.get(day.iso) ?? [];
           const isSelected = selected === day.iso;
           const survole = drag?.jour === day.iso;
@@ -192,7 +291,7 @@ export function WeekPlanner({
               type="button"
               data-jour={day.iso}
               aria-pressed={isSelected}
-              aria-label={`${day.label} ${day.dayOfMonth}, ${daySessions.length} séance(s)`}
+              aria-label={`${formatDayLong(day.iso)}, ${daySessions.length} séance(s)`}
               onClick={() => setSelected(day.iso)}
               className={`rounded-lg border py-1.5 transition-colors ${
                 survole
@@ -202,13 +301,13 @@ export function WeekPlanner({
                     : day.isToday
                       ? "border-pine/40 bg-card"
                       : "border-line bg-card"
+              } ${
+                // Les jours de complément restent cliquables — une séance y
+                // vit peut-être — mais s'effacent, sinon on ne voit plus où
+                // commence le mois qu'on est venu lire.
+                day.dansLeMois ? "" : "opacity-45"
               }`}
             >
-              <span
-                className={`block text-[10px] uppercase ${day.isPast ? "text-ink-soft/60" : "text-ink-soft"}`}
-              >
-                {day.label}
-              </span>
               <span
                 className={`block font-display text-[15px] font-semibold tabular-nums ${
                   day.isPast ? "text-ink-soft" : "text-ink"
@@ -252,10 +351,13 @@ export function WeekPlanner({
         <div className="mt-3 space-y-2">
           {selectedSessions.length === 0 ? (
             <div className="rounded-xl border border-dashed border-line px-4 py-4 text-center">
+              {/* Tant que la période n'est pas revenue, ce jour n'est pas
+                  vide : il est inconnu. Les confondre est exactement le
+                  défaut qu'on corrige (#141). */}
               <p className="text-[13px] text-ink-soft">
-                Rien de prévu ce jour-là.
+                {chargement ? "Chargement…" : "Rien de prévu ce jour-là."}
               </p>
-              {canPlan && (
+              {canPlan && !chargement && (
                 <Link
                   href={`/planifier?athlete=${athleteId}&date=${selected}`}
                   className={`${btnGhost} mt-2.5`}
@@ -268,8 +370,8 @@ export function WeekPlanner({
           ) : (
             selectedSessions.map((s) => {
               const etat = planningState(s, today);
-              const blocs = blocksBySession[s.id] ?? [];
-              const exercices = exercisesBySession[s.id] ?? [];
+              const blocs = tousBlocs[s.id] ?? [];
+              const exercices = tousExercices[s.id] ?? [];
               const deplacable = canPlan && peutDeplacer(s);
               return (
                 <div
@@ -360,7 +462,7 @@ export function WeekPlanner({
                       <WorkoutBlocksList blocks={blocs} />
                       <ExercisesList
                         exercises={exercices}
-                        logs={logsBySession[s.id] ?? []}
+                        logs={tousLogs[s.id] ?? []}
                       />
                     </div>
                   )}
@@ -369,6 +471,20 @@ export function WeekPlanner({
                     <p className="mt-1.5 text-[13px] text-ink-soft whitespace-pre-line">
                       {s.description}
                     </p>
+                  )}
+
+                  {/* Ce que la montre a mesuré, avant d'ouvrir la séance. */}
+                  {toutesAnalyses[s.id] && (
+                    <div className="mt-1.5 border-t border-line pt-1.5">
+                      {toutesAnalyses[s.id].structure && (
+                        <p className="text-[13px] font-semibold text-pine">
+                          {toutesAnalyses[s.id].structure}
+                        </p>
+                      )}
+                      <p className="text-[13px] text-ink-soft">
+                        {toutesAnalyses[s.id].resume}
+                      </p>
+                    </div>
                   )}
 
                   {s.athlete_comment && (

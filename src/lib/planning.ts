@@ -4,6 +4,78 @@ import type { SessionStatus } from "./types";
 /** Nombre maximal de séances créées en une seule fois (athlètes × dates). */
 export const MAX_BATCH_SESSIONS = 120;
 
+/**
+ * Demi-largeur de la fenêtre chargée d'emblée par la vue planning, en jours.
+ *
+ * Douze semaines de part et d'autre, et non huit : depuis que la vue affiche
+ * un **mois** entier (#143), deux coups de flèche suffisaient à sortir des
+ * huit semaines, si bien que la navigation ordinaire attendait le serveur
+ * presque à chaque pas — l'inverse de ce que la fenêtre existe pour éviter.
+ * Douze semaines couvrent le mois affiché et les deux de part et d'autre.
+ */
+export const FENETRE_PLANNING_JOURS = 84;
+
+/** Période couverte par les données déjà chargées. */
+export type FenetreDates = { debut: string; fin: string };
+
+export function fenetreAutour(
+  now = new Date(),
+  jours = FENETRE_PLANNING_JOURS
+): FenetreDates {
+  return {
+    debut: toISODate(addDays(now, -jours)),
+    fin: toISODate(addDays(now, jours)),
+  };
+}
+
+/**
+ * Ce qu'il manque pour afficher la période demandée, ou `null` si elle est
+ * déjà couverte.
+ *
+ * Sans cela, la vue affirmait qu'un jour était vide alors qu'elle n'avait
+ * simplement jamais demandé ses séances — indistinguable d'un jour libre
+ * (#141). Le manque est rendu **par blocs d'une fenêtre entière** plutôt que
+ * période par période : qui remonte de deux mois continue généralement, et
+ * plusieurs requêtes valent moins qu'une seule un peu plus large.
+ *
+ * La période est donnée en dates et non en semaine : depuis #143 la vue
+ * affiche un mois, dont la grille déborde des deux côtés.
+ */
+export function fenetreManquante(
+  fenetre: FenetreDates,
+  periode: FenetreDates,
+  jours = FENETRE_PLANNING_JOURS
+): FenetreDates | null {
+  const { debut: debutSemaine, fin: finSemaine } = periode;
+
+  if (debutSemaine < fenetre.debut) {
+    return {
+      debut: toISODate(addDays(new Date(`${fenetre.debut}T12:00:00`), -jours)),
+      // Jusqu'à la veille de ce qu'on a déjà : les deux tranches se touchent
+      // sans se recouvrir.
+      fin: toISODate(addDays(new Date(`${fenetre.debut}T12:00:00`), -1)),
+    };
+  }
+  if (finSemaine > fenetre.fin) {
+    return {
+      debut: toISODate(addDays(new Date(`${fenetre.fin}T12:00:00`), 1)),
+      fin: toISODate(addDays(new Date(`${fenetre.fin}T12:00:00`), jours)),
+    };
+  }
+  return null;
+}
+
+/** La fenêtre élargie à une tranche qu'on vient de charger. */
+export function etendreFenetre(
+  fenetre: FenetreDates,
+  ajout: FenetreDates
+): FenetreDates {
+  return {
+    debut: ajout.debut < fenetre.debut ? ajout.debut : fenetre.debut,
+    fin: ajout.fin > fenetre.fin ? ajout.fin : fenetre.fin,
+  };
+}
+
 export type CalendarDay = {
   iso: string;
   /** "L", "M", … — initiale du jour. */
@@ -37,53 +109,6 @@ export function planningCalendar(weeks = 3, now = new Date()): CalendarDay[] {
     });
   }
   return days;
-}
-
-/** Lundi de la semaine contenant `date`. */
-export function startOfWeek(date: Date): Date {
-  return addDays(date, -((date.getDay() + 6) % 7));
-}
-
-export type WeekDay = {
-  iso: string;
-  /** "lun.", "mar."… */
-  label: string;
-  dayOfMonth: number;
-  isToday: boolean;
-  isPast: boolean;
-};
-
-/** Les 7 jours de la semaine commençant au lundi donné. */
-export function weekDays(monday: Date, now = new Date()): WeekDay[] {
-  const today = toISODate(now);
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(monday, i);
-    const iso = toISODate(date);
-    return {
-      iso,
-      label: date
-        .toLocaleDateString("fr-FR", { weekday: "short" })
-        .replace(".", ""),
-      dayOfMonth: date.getDate(),
-      isToday: iso === today,
-      isPast: iso < today,
-    };
-  });
-}
-
-/** "Semaine du 3 au 9 août" — entête de la vue semaine. */
-export function weekLabel(monday: Date): string {
-  const sunday = addDays(monday, 6);
-  const sameMonth = monday.getMonth() === sunday.getMonth();
-  const start = monday.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    ...(sameMonth ? {} : { month: "short" }),
-  });
-  const end = sunday.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-  });
-  return `Semaine du ${start} au ${end}`;
 }
 
 /**
@@ -124,6 +149,27 @@ export const PLANNING_STATE_LABEL: Record<PlanningState, string> = {
  */
 export function peutDeplacer(session: Pick<SessionRef, "status">): boolean {
   return session.status === "planned";
+}
+
+/**
+ * Qui peut supprimer cette séance, et pourquoi.
+ *
+ * Miroir exact de la policy `sessions_delete` (migration 018). L'affichage ne
+ * décide de rien — la base refuserait de toute façon — mais proposer un bouton
+ * qui échoue est pire que ne pas le proposer.
+ *
+ * Deux cas, et un seul refus qui mérite d'être expliqué : un athlète devant la
+ * prescription de son coach. Les autres n'ont pas de bouton du tout.
+ */
+export function peutSupprimer(
+  session: { coach_id: string | null; athlete_id: string; status: SessionStatus },
+  utilisateurId: string
+): boolean {
+  // L'athlète, sur sa séance libre : c'est son carnet.
+  if (session.coach_id === null) return session.athlete_id === utilisateurId;
+  // Le coach, sur sa prescription encore à venir. Une séance rapportée porte
+  // le compte rendu de l'athlète, qu'il n'a pas à effacer.
+  return session.coach_id === utilisateurId && session.status === "planned";
 }
 
 type SessionRef = { id: string; date: string; status: SessionStatus };

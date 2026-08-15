@@ -9,7 +9,13 @@ import { CoachNoteForm } from "@/components/CoachNoteForm";
 import { deleteObjective } from "@/app/(app)/actions";
 import { computeMetrics } from "@/lib/metrics";
 import { addDays, formatDuration, toISODate } from "@/lib/dates";
-import { additionnerZones, repartitionZones, type RepartitionZones } from "@/lib/zones";
+import {
+  additionnerZones,
+  libelleMethode,
+  methodeCalculable,
+  repartitionZones,
+  type RepartitionZones,
+} from "@/lib/zones";
 import type {
   Activity,
   ActivityTrace,
@@ -70,8 +76,14 @@ export default async function AthleteFichePage({
   // Moyenne des zones sur les 10 dernières séances rapportées, pas sur la
   // fenêtre de 28 jours ci-dessus : un athlète qui s'entraîne peu doit
   // pouvoir remonter plus loin pour ses 10 dernières.
+  const refs = {
+    fcMax: athlete.fc_max,
+    fcRepos: athlete.fc_repos,
+    lthr: athlete.lthr,
+  };
+
   let zonesMoyennes: RepartitionZones | null = null;
-  if (athlete.fc_max) {
+  if (methodeCalculable(athlete.zone_method, refs)) {
     const { data: dernieresSeances } = await supabase
       .from("sessions")
       .select("id")
@@ -104,9 +116,8 @@ export default async function AthleteFichePage({
           .select("t_s, heart_rate")
           .in("activity_id", activiteIds);
 
-        const fcMax = athlete.fc_max;
         zonesMoyennes = ((traces ?? []) as Pick<ActivityTrace, "t_s" | "heart_rate">[]).reduce(
-          (acc, t) => additionnerZones(acc, repartitionZones(t.t_s, t.heart_rate ?? [], fcMax)),
+          (acc, t) => additionnerZones(acc, repartitionZones(t.t_s, t.heart_rate ?? [], athlete.zone_method, refs)),
           ZONES_VIDES
         );
       }
@@ -141,7 +152,7 @@ export default async function AthleteFichePage({
 
       {zonesMoyennes && (
         <Card className="p-4">
-          <ZoneBar titre="Zones (10 dernières séances)" zones={zonesMoyennes} />
+          <ZoneBar titre={`Zones (10 dernières séances) · ${libelleMethode(athlete.zone_method)}`} zones={zonesMoyennes} />
         </Card>
       )}
 

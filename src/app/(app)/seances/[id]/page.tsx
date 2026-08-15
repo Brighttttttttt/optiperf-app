@@ -4,16 +4,25 @@ import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader, RpeChip } from "@/components/ui";
 import { EditSessionForm } from "@/components/EditSessionForm";
 import { ActivityTraceChart } from "@/components/ActivityTraceChart";
+import { AnalyseTours } from "@/components/AnalyseTours";
+import { DeleteSessionButton } from "@/components/DeleteSessionButton";
 import { WorkoutBlocksList } from "@/components/WorkoutBlocksList";
 import { ZoneBar } from "@/components/ZoneBar";
 import { ExercisesList } from "@/components/ExercisesList";
 import { formatDayRelative, formatDayLong, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
-import { repartitionZones } from "@/lib/zones";
+import {
+  libelleMethode,
+  methodeCalculable,
+  repartitionZones,
+} from "@/lib/zones";
+import { analyserSeance } from "@/lib/analyse-seance";
+import { peutSupprimer } from "@/lib/planning";
 import {
   activitySourceLabel,
   sessionTypeLabel,
   type Activity,
+  type ActivityLap,
   type ActivityTrace,
   type Exercise,
   type ExerciseLog,
@@ -50,9 +59,11 @@ export default async function SessionPage({
 
   const { data: athlete } = await supabase
     .from("profiles")
-    .select("full_name, fc_max")
+    .select("full_name, fc_max, fc_repos, lthr, zone_method")
     .eq("id", session.athlete_id)
-    .maybeSingle<Pick<Profile, "full_name" | "fc_max">>();
+    .maybeSingle<
+      Pick<Profile, "full_name" | "fc_max" | "fc_repos" | "lthr" | "zone_method">
+    >();
 
   const { data: blocksData } = await supabase
     .from("workout_blocks")
@@ -88,6 +99,33 @@ export default async function SessionPage({
           .eq("activity_id", activity.id)
           .maybeSingle<ActivityTrace>()
       : { data: null };
+
+    // Les tours, d'où se déduit toute la structure de la séance. Absents
+    // d'un GPX et d'un compte rendu saisi à la main : l'analyse ne s'affiche
+    // alors pas, et la page le dit plutôt que de se taire.
+    const { data: toursData } = activity
+      ? await supabase
+          .from("activity_laps")
+          .select("position, duration_s, distance_m, avg_heart_rate")
+          .eq("activity_id", activity.id)
+          .order("position")
+      : { data: null };
+    const tours = (toursData ?? []) as Pick<
+      ActivityLap,
+      "position" | "duration_s" | "distance_m" | "avg_heart_rate"
+    >[];
+    const analyse =
+      tours.length > 0
+        ? analyserSeance(
+            tours.map((t) => ({
+              position: t.position,
+              durationS: t.duration_s,
+              distanceM: t.distance_m,
+              avgHeartRate: t.avg_heart_rate,
+            })),
+            activity?.avg_heart_rate ?? null
+          )
+        : null;
 
     const { data: logsData } =
       exercises.length > 0
@@ -172,16 +210,52 @@ export default async function SessionPage({
             </Card>
           )}
 
+          {analyse && (
+            <Card className="p-4">
+              <AnalyseTours analyse={analyse} />
+            </Card>
+          )}
+
+          {activity && !analyse && (
+            <Card className="p-4">
+              <p className="text-[13px] text-ink-soft">
+                Ce fichier ne contient pas de tours : le détail des
+                répétitions n&apos;est pas disponible. Un export FIT ou TCX les
+                porte, un GPX jamais.
+              </p>
+            </Card>
+          )}
+
           {trace && (
             <Card className="p-4 space-y-4">
-              {athlete?.fc_max && (
+              {athlete && methodeCalculable(athlete.zone_method, {
+                fcMax: athlete.fc_max,
+                fcRepos: athlete.fc_repos,
+                lthr: athlete.lthr,
+              }) && (
                 <ZoneBar
-                  titre="Zones de fréquence cardiaque"
-                  zones={repartitionZones(trace.t_s, trace.heart_rate ?? [], athlete.fc_max)}
+                  titre={`Zones de fréquence cardiaque · ${libelleMethode(athlete.zone_method)}`}
+                  zones={repartitionZones(trace.t_s, trace.heart_rate ?? [], athlete.zone_method, {
+                    fcMax: athlete.fc_max,
+                    fcRepos: athlete.fc_repos,
+                    lthr: athlete.lthr,
+                  })}
                 />
               )}
               <ActivityTraceChart trace={trace} />
             </Card>
+          )}
+
+          {/* En pied de page, dans sa propre zone : une action définitive ne
+              se glisse pas entre deux blocs de données, où elle se lit comme
+              une légende et ne se trouve pas quand on la cherche (#137). */}
+          {profile && peutSupprimer(session, profile.id) && (
+            <div className="mt-6 border-t border-line pt-4">
+              <DeleteSessionButton
+                sessionId={session.id}
+                aDuContenu={blocks.length > 0 || exercises.length > 0}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -197,6 +271,15 @@ export default async function SessionPage({
       />
       <div className="px-5">
         <EditSessionForm session={session} blocks={blocks} exercises={exercises} />
+        {/* Même zone qu'au-dessus : sous le formulaire, détachée de lui. */}
+        {profile && peutSupprimer(session, profile.id) && (
+          <div className="mt-6 border-t border-line pt-4">
+            <DeleteSessionButton
+              sessionId={session.id}
+              aDuContenu={blocks.length > 0 || exercises.length > 0}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { RpeDot } from "./ui";
 import { IconChevronRight } from "./Icons";
 import { formatDayShort, formatDuration } from "@/lib/dates";
 import { formatDistance } from "@/lib/activites";
+import type { AnalyseSeance } from "@/lib/analyse-seance";
 import {
   activitySourceLabel,
   sessionTypeLabel,
@@ -21,9 +22,12 @@ import {
 export function SessionRow({
   session,
   activity,
+  analyse,
 }: {
   session: TrainingSession;
   activity?: Activity | null;
+  /** Absente si le fichier n'avait pas de tours (GPX, saisie à la main). */
+  analyse?: AnalyseSeance | null;
 }) {
   const duration = session.duration_actual_min ?? session.duration_planned_min;
   const releve = activity && [
@@ -54,6 +58,16 @@ export function SessionRow({
             {activitySourceLabel(activity.source)}
             {releve ? ` · ${releve}` : ""}
           </p>
+        )}
+        {/* La structure lue dans les tours, avant même d'ouvrir la séance :
+            c'est ce que le coach parcourt pour savoir qui a tenu la sienne. */}
+        {analyse && analyse.structure && (
+          <p className="mt-0.5 text-[13px] font-semibold text-pine">
+            {analyse.structure}
+          </p>
+        )}
+        {analyse && (
+          <p className="text-[13px] text-ink-soft">{analyse.resume}</p>
         )}
         {session.athlete_comment && (
           <p className="mt-1 text-[13px] text-ink-soft italic">

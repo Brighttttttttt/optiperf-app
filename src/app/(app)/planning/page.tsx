@@ -2,11 +2,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/supabase/session";
 import { Card, PageHeader } from "@/components/ui";
-import { WeekPlanner } from "@/components/WeekPlanner";
+import { MonthPlanner } from "@/components/MonthPlanner";
 import { addDays, toISODate } from "@/lib/dates";
-import { chargerDetailsSeances } from "@/lib/session-details";
-import { pluralize } from "@/lib/planning";
-import type { TrainingSession } from "@/lib/types";
+import { chargerFenetrePlanning } from "@/lib/session-details";
+import { fenetreAutour, pluralize } from "@/lib/planning";
 
 /**
  * Semaine de l'athlète : ce que le coach voit de lui sur `/athletes/[id]/planning`,
@@ -26,18 +25,16 @@ export default async function PlanningPage() {
   const today = toISODate(now);
 
   // Même fenêtre que la fiche coach (±8 semaines) : la navigation d'une
-  // semaine à l'autre se fait sans aller-retour serveur.
-  const { data } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("athlete_id", profile.id)
-    .gte("date", toISODate(addDays(now, -56)))
-    .lte("date", toISODate(addDays(now, 56)))
-    .order("date");
-  const sessions = (data ?? []) as TrainingSession[];
-  const details = await chargerDetailsSeances(
+  // semaine à l'autre s'y fait sans aller-retour serveur. Au-delà, la vue va
+  // chercher elle-même ce qui lui manque (#141) — d'où la fenêtre transmise :
+  // elle seule dit ce que ces données couvrent, y compris quand elles sont
+  // vides.
+  const fenetre = fenetreAutour(now);
+  const { sessions, ...contenu } = await chargerFenetrePlanning(
     supabase,
-    sessions.map((s) => s.id)
+    profile.id,
+    fenetre.debut,
+    fenetre.fin
   );
 
   const semaine = sessions.filter(
@@ -57,11 +54,12 @@ export default async function PlanningPage() {
       />
       <div className="px-5">
         <Card className="p-3">
-          <WeekPlanner
+          <MonthPlanner
             athleteId={profile.id}
             sessions={sessions}
+            fenetre={fenetre}
             canPlan={false}
-            {...details}
+            {...contenu}
           />
         </Card>
       </div>

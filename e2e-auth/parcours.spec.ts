@@ -70,7 +70,10 @@ test.describe("Coach", () => {
     await expect(page.getByRole("heading", { name: "Léa Martin" })).toBeVisible();
 
     await page.getByRole("link", { name: "Planning" }).click();
-    await expect(page.getByText("Cette semaine")).toBeVisible();
+    // La grille du mois, et non plus une semaine (#143).
+    await expect(
+      page.getByRole("group", { name: "Mois affiché" })
+    ).toBeVisible();
 
     await page.getByRole("link", { name: "Historique" }).click();
     await expect(page.getByText("Charge par semaine")).toBeVisible();

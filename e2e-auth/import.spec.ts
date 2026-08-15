@@ -202,7 +202,9 @@ test("un fichier FIT est importable de bout en bout", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("le même fichier déposé deux fois est refusé", async ({ page }) => {
+test("le même fichier déposé deux fois est refusé, en disant où il est", async ({
+  page,
+}) => {
   await seConnecter(page, "sofia@example.com");
 
   // Un fichier propre à ce test : son empreinte ne doit croiser aucune autre,
@@ -225,7 +227,181 @@ test("le même fichier déposé deux fois est refusé", async ({ page }) => {
   await page.getByRole("radio", { name: "4", exact: true }).click();
   await page.getByRole("button", { name: "Enregistrer" }).click();
 
-  await expect(page.getByText("Cette séance a déjà été importée.")).toBeVisible();
+  // Le relevé est toujours rattaché à sa séance : c'est un vrai doublon, et
+  // le message doit dire où le retrouver plutôt que d'annoncer un échec sec.
+  await expect(page.getByText(/déjà rattaché à une séance/)).toBeVisible();
+});
+
+/**
+ * Régression #135 — le fichier fantôme.
+ *
+ * `activities.session_id` est `on delete set null` (007) : supprimer une
+ * séance laissait derrière elle une activité qu'aucun écran ne montrait, et
+ * qui interdisait pourtant de redéposer le fichier dont elle venait. Le
+ * symptôme était trompeur au possible : « déjà importée » alors que l'athlète
+ * venait de tout effacer.
+ */
+test("redéposer un fichier dont la séance a été supprimée fonctionne", async ({
+  page,
+}) => {
+  await seConnecter(page, "sofia@example.com");
+  const contenu = gpxDuJour(crypto.randomUUID(), 13);
+
+  await deposer(page, contenu, "fantome.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance fantôme");
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  // Supprimer la séance depuis son écran, comme le ferait l'athlète.
+  await page.getByRole("link", { name: "Historique" }).click();
+  await page.getByText("Séance fantôme").click();
+  await page.getByRole("button", { name: "Supprimer la séance" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+
+  // Vérifié depuis l'historique plutôt que sur place : la page de la séance
+  // se vide par une redirection déclenchée au re-rendu, dont on ne veut pas
+  // faire dépendre l'assertion.
+  await page.goto("/history");
+  await expect(page.getByText("Séance fantôme")).toBeHidden();
+
+  // L'activité a survécu, sans séance : elle se voit désormais, et se dit.
+  await page.goto("/activites");
+  await expect(page.getByText("Non rattaché")).toBeVisible();
+
+  // Et le fichier redevient déposable : l'activité orpheline est reprise.
+  await page.goto("/");
+  await deposer(page, contenu, "fantome.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance retrouvée");
+  await page.getByRole("radio", { name: "5", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+  await expect(page.getByText(/déjà rattaché|déjà été importée/)).toBeHidden();
+
+  // Reprise et non duplication : une seule activité pour ce fichier, et elle
+  // pointe maintenant vers la nouvelle séance.
+  await page.goto("/activites");
+  await expect(page.getByRole("link", { name: "Séance retrouvée" })).toBeVisible();
+  await expect(page.getByText("Non rattaché")).toBeHidden();
+});
+
+test("l'athlète supprime un relevé, et la séance qu'il documentait reste", async ({
+  page,
+}) => {
+  await seConnecter(page, "sofia@example.com");
+  const contenu = gpxDuJour(crypto.randomUUID(), 21);
+
+  await deposer(page, contenu, "a-effacer.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Séance conservée");
+  await page.getByRole("radio", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  // Ciblé par `listitem` et non par un `div` filtré sur son texte : ce
+  // dernier motif attrape une boîte trop étroite et bloque le clic — panne
+  // déterministe déjà rencontrée, pas un test instable.
+  await page.goto("/activites");
+  const ligne = page.getByRole("listitem").filter({ hasText: "a-effacer.gpx" });
+  await ligne.getByRole("button", { name: "Supprimer" }).click();
+  await ligne.getByRole("button", { name: "Supprimer", exact: true }).click();
+
+  await expect(page.getByText("a-effacer.gpx")).toBeHidden();
+
+  // Le compte rendu appartient à l'athlète : effacer le fichier déposé
+  // n'efface pas la séance qu'il documentait.
+  await page.goto("/history");
+  await expect(page.getByText("Séance conservée")).toBeVisible();
+});
+
+/**
+ * La même sortie sous deux formats (#107).
+ *
+ * Manœuvre naturelle : on dépose un GPX, on découvre qu'il ne porte aucun
+ * tour, on redépose la sortie en TCX pour obtenir l'analyse. Deux contenus,
+ * deux empreintes, donc la contrainte SQL de 007 ne voit rien — et la charge
+ * de la semaine se retrouve comptée deux fois.
+ *
+ * L'heure de départ est tirée au sort à chaque exécution, franchement après
+ * celle des autres tests de ce fichier : tous partagent le même compte et la
+ * même base, et deux dépôts distants de moins de cinq minutes seraient
+ * désormais rapprochés — y compris ceux d'une exécution précédente, en local
+ * où la base n'est pas refaite.
+ */
+test("la même sortie sous deux formats est signalée, sans être interdite", async ({
+  page,
+}) => {
+  await seConnecter(page, "sofia@example.com");
+
+  // `tcxDuJour` compte depuis 11 h et `gpxDuJour` depuis 10 h : d'où le -60
+  // pour viser la même heure, plus deux minutes d'écart au départ.
+  const depart = 200 + Math.floor(Math.random() * 100);
+  await deposer(page, gpxDuJour(crypto.randomUUID(), depart), "sortie.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Sortie en double");
+  await page.getByRole("radio", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  // Le TCX de la même sortie : deux minutes d'écart au départ, l'attente du
+  // signal satellite d'un côté et le chronomètre de l'autre.
+  await deposer(page, tcxDuJour(crypto.randomUUID(), depart - 60 + 2), "sortie.tcx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByRole("radio", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  // Le refus nomme le fichier déjà là et dit ce qu'on éviterait.
+  await expect(page.getByText(/sortie\.gpx/)).toBeVisible();
+  await expect(page.getByText(/compterait sa charge en double/)).toBeVisible();
+
+  // Mais il n'est pas définitif : le rapprochement est souple, et l'athlète
+  // est seul à savoir s'il a vraiment couru deux fois.
+  await page.getByRole("button", { name: "Enregistrer quand même" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+});
+
+test("deux sorties de la même journée ne sont pas confondues", async ({ page }) => {
+  await seConnecter(page, "sofia@example.com");
+
+  // Un doublé matin/soir : le faux positif qu'il ne faut jamais produire.
+  // Heures tirées au sort pour la même raison que ci-dessus, sur une plage
+  // qui ne croise pas celle du test précédent. Bornée en fin de journée : à
+  // 10 h UTC + 12 h, la sortie basculerait au lendemain en heure de Paris et
+  // ne serait plus la même date.
+  const matin = 400 + Math.floor(Math.random() * 50);
+  await deposer(page, gpxDuJour(crypto.randomUUID(), matin), "matin.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Footing du matin");
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+
+  await deposer(page, gpxDuJour(crypto.randomUUID(), matin + 120), "soir.gpx");
+  await page.getByLabel("Rattacher à").selectOption({ label: "Aucune — nouvelle séance" });
+  await page.getByLabel("Titre").fill("Footing du soir");
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  // Enregistré du premier coup : aucun avertissement à franchir.
+  await expect(
+    page.getByRole("button", { name: "Ajouter une séance" })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enregistrer quand même" })).toBeHidden();
 });
 
 test("un fichier illisible est refusé avant tout enregistrement", async ({ page }) => {

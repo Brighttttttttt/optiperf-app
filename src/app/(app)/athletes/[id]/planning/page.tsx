@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui";
-import { WeekPlanner } from "@/components/WeekPlanner";
+import { MonthPlanner } from "@/components/MonthPlanner";
 import { IconPlus } from "@/components/Icons";
 import { btnPrimary } from "@/lib/styles";
-import { addDays, toISODate } from "@/lib/dates";
-import { chargerDetailsSeances } from "@/lib/session-details";
-import type { Profile, TrainingSession } from "@/lib/types";
+import { toISODate } from "@/lib/dates";
+import { chargerFenetrePlanning } from "@/lib/session-details";
+import { fenetreAutour } from "@/lib/planning";
+import type { Profile } from "@/lib/types";
 
 export default async function AthletePlanningPage({
   params,
@@ -26,20 +27,16 @@ export default async function AthletePlanningPage({
     .maybeSingle<Pick<Profile, "id" | "full_name">>();
   if (!athlete) redirect("/");
 
-  // Fenêtre large (±8 semaines) : la vue semaine navigue sans aller-retour serveur.
-  const { data } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("athlete_id", id)
-    .gte("date", toISODate(addDays(now, -56)))
-    .lte("date", toISODate(addDays(now, 56)))
-    .order("date");
-  const sessions = (data ?? []) as TrainingSession[];
-  const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
-  const details = await chargerDetailsSeances(
+  // Fenêtre large (±8 semaines) : la vue semaine y navigue sans aller-retour
+  // serveur, et va chercher elle-même les périodes plus lointaines (#141).
+  const fenetre = fenetreAutour(now);
+  const { sessions, ...contenu } = await chargerFenetrePlanning(
     supabase,
-    sessions.map((s) => s.id)
+    id,
+    fenetre.debut,
+    fenetre.fin
   );
+  const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
 
   return (
     <div className="px-5 space-y-3">
@@ -53,7 +50,12 @@ export default async function AthletePlanningPage({
         </Link>
       </div>
       <Card className="p-3">
-        <WeekPlanner athleteId={id} sessions={sessions} {...details} />
+        <MonthPlanner
+          athleteId={id}
+          sessions={sessions}
+          fenetre={fenetre}
+          {...contenu}
+        />
       </Card>
       {upcoming.length === 0 && (
         <p className="text-center text-[13px] text-ink-soft">

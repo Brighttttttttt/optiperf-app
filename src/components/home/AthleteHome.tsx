@@ -59,7 +59,7 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
   const d28 = toISODate(addDays(now, -27));
   const d7ahead = toISODate(addDays(now, 7));
 
-  const [linkRes, sessionsRes, objectivesRes] = await Promise.all([
+  const [linkRes, sessionsRes, objectivesRes, totalRes] = await Promise.all([
     supabase
       .from("coach_athletes")
       .select("coach_id")
@@ -77,11 +77,19 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
       .select("*")
       .eq("athlete_id", athlete.id)
       .order("target_date", { ascending: true }),
+    // Toutes dates confondues, et sans en ramener aucune : « n'a jamais rien
+    // enregistré » ne se lit pas dans la fenêtre de 4 semaines ci-dessus, où
+    // quelqu'un d'ancien mais en coupure compterait pour un nouveau venu.
+    supabase
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("athlete_id", athlete.id),
   ]);
 
   const sessions = (sessionsRes.data ?? []) as TrainingSession[];
   const objectives = (objectivesRes.data ?? []) as Objective[];
   const hasCoach = Boolean(linkRes.data);
+  const debute = (totalRes.count ?? 0) === 0;
 
   const metrics = computeMetrics(sessions, now);
   const upcoming = sessions.filter((s) => s.status === "planned" && s.date >= today);
@@ -148,12 +156,19 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
           )}
         </Card>
 
-        {!hasCoach && (
+        {/* Seulement au tout début — un compte sans coach *et* sans la
+            moindre séance vient d'arriver, et a besoin qu'on lui dise par où
+            commencer. Passé la première séance, s'entraîner seul est un choix
+            et non un manque à corriger : l'invitation redescend dans les
+            réglages, où la carte « Mon coach » l'attend en permanence (#138). */}
+        {!hasCoach && debute && (
           <Card className="p-4">
-            <p className="font-semibold">Rejoins ton coach</p>
+            <p className="font-semibold">Par où commencer</p>
             <p className="mt-0.5 text-[13px] text-ink-soft">
-              Saisis le code qu&apos;il t&apos;a partagé pour recevoir ton
-              planning.
+              Enregistre tes séances toi-même avec «&nbsp;Ajouter une
+              séance&nbsp;» ci-dessous — à la main, ou en déposant le fichier
+              de ta montre. Et si tu as un coach, saisis le code qu&apos;il
+              t&apos;a partagé pour recevoir son planning.
             </p>
             <LinkCoachForm />
           </Card>
@@ -178,12 +193,15 @@ export async function AthleteHome({ athlete }: { athlete: Profile }) {
           </h2>
           {upcoming.length === 0 ? (
             <Card>
+              {/* Sans coach, rien n'est « en attente » : l'athlète tient son
+                  carnet lui-même, et lui annoncer un planning qui n'arrivera
+                  jamais lui présente son autonomie comme une panne. */}
               <EmptyState
                 title="Rien de planifié pour le moment"
                 hint={
                   hasCoach
                     ? "Ton coach n'a pas encore planifié la suite."
-                    : "Ton planning apparaîtra ici une fois lié à ton coach."
+                    : "Enregistre tes séances au fil de l'eau : elles nourrissent tes courbes, tes zones et ton historique."
                 }
               />
             </Card>

@@ -20,7 +20,7 @@ async function seConnecter(page: Page, email: string) {
   await expect(page).toHaveURL(/\/$|\/\?/);
 }
 
-test("une séance se glisse d'un jour à l'autre dans la vue semaine", async ({
+test("une séance se glisse d'un jour à l'autre dans la grille du mois", async ({
   page,
 }) => {
   // Connexion, planification, navigation, glissement puis rechargement.
@@ -43,15 +43,16 @@ test("une séance se glisse d'un jour à l'autre dans la vue semaine", async ({
   const jourOuvert = page.locator('button[aria-pressed="true"]');
   const depuis = await jourOuvert.getAttribute("data-jour");
 
-  // N'importe quel autre jour de la semaine affichée : lequel n'a pas
-  // d'importance, et le calculer ici éviterait de dépendre du jour où la
-  // suite tourne.
+  // Le jour suivant de la grille : lequel n'a pas d'importance, et le
+  // calculer ici éviterait de dépendre du jour où la suite tourne. On vise
+  // l'avant plutôt que l'après pour rester dans le mois ouvert — la grille en
+  // affiche désormais un entier (#143), débordements compris.
   const jours = await page
     .locator("button[data-jour]")
     .evaluateAll((els) =>
       els.map((el) => (el as HTMLElement).dataset.jour as string)
     );
-  const vers = jours.find((j) => j !== depuis)!;
+  const vers = jours.find((j) => j > depuis!) ?? jours.find((j) => j !== depuis)!;
 
   const poignee = page.getByRole("button", {
     name: new RegExp(`^Déplacer « ${titre}`),
