@@ -71,7 +71,13 @@ async function ensureUser(email, fullName, role) {
     email,
     password: PASSWORD,
     email_confirm: true,
-    user_metadata: { full_name: fullName, role },
+    // Le consentement aux donnees de sante (migration 020) : sans lui, les
+    // comptes de demonstration afficheraient la demande en tete d'accueil.
+    user_metadata: {
+      full_name: fullName,
+      role,
+      health_consent_at: new Date().toISOString(),
+    },
   });
   if (!error) return data.user.id;
   if (String(error.message).toLowerCase().includes("already")) {

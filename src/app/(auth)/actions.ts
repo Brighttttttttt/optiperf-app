@@ -47,13 +47,29 @@ export async function signup(
   if (password.length < 8) {
     return { error: "Le mot de passe doit faire au moins 8 caractères." };
   }
+  // Revérifié ici : `required` sur la case ne tient que dans le navigateur, et
+  // sans consentement explicite il n'existe aucune base légale pour traiter
+  // une fréquence cardiaque (RGPD art. 9.2.a).
+  if (formData.get("health_consent") !== "on") {
+    return {
+      error:
+        "Coche l'autorisation de traiter tes données de santé : sans elle, Optiperf ne peut pas calculer tes zones ni ta charge.",
+    };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName, role },
+      // Le profil naît d'un trigger sur `auth.users`, avant qu'une session
+      // n'existe : le consentement voyage donc dans les métadonnées, et c'est
+      // `handle_new_user` (migration 020) qui le pose.
+      data: {
+        full_name: fullName,
+        role,
+        health_consent_at: new Date().toISOString(),
+      },
       // Le lien de confirmation revient sur l'origine servie (production
       // ou préversion), et non sur la Site URL fixe du projet Supabase.
       emailRedirectTo: `${await currentOrigin()}/auth/callback`,

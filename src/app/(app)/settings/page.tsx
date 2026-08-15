@@ -17,6 +17,7 @@ import { TemplateList } from "@/components/TemplateList";
 import type { PersonalRecord, SessionTemplate } from "@/lib/types";
 import { signOut } from "@/app/(auth)/actions";
 import { initials } from "@/lib/initials";
+import { formatDayLong } from "@/lib/dates";
 import type { Profile } from "@/lib/types";
 
 /** Ce que dit la page au retour d'une autorisation Strava. */
@@ -193,6 +194,27 @@ export default async function SettingsPage({
             Se déconnecter
           </button>
         </form>
+
+        {/* Le consentement se relit et se retire : un accord dont on ne
+            retrouve ni la date ni la sortie n'en est pas vraiment un. */}
+        <Card className="p-4">
+          <p className="font-semibold">Données de santé</p>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-soft">
+            {profile.health_consent_at
+              ? `Tu as autorisé le traitement de tes données de santé le ${formatDayLong(profile.health_consent_at.slice(0, 10))}.`
+              : "Tu n'as pas encore donné cette autorisation."}{" "}
+            Elle couvre ta fréquence cardiaque, ton seuil, ta VMA et ton effort
+            ressenti, pour calculer tes zones et ta charge.{" "}
+            <Link href="/confidentialite" className="font-semibold text-pine hover:underline">
+              En savoir plus
+            </Link>
+          </p>
+          <p className="mt-2 text-[13px] text-ink-soft">
+            Pour la retirer, supprime ton compte ci-dessous : ces données sont
+            ce qu&apos;Optiperf calcule, il n&apos;y a pas de service sans
+            elles.
+          </p>
+        </Card>
 
         <DeleteAccount role={profile.role} />
 

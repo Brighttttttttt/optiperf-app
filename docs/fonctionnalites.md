@@ -18,6 +18,7 @@ dans [donnees.md](donnees.md). Index de la documentation : [docs/](README.md).
 | Inscription et rôle | Créer un compte coach ou athlète. Le rôle est choisi à l'inscription et ne change plus. | `src/app/(auth)/signup` |
 | Confirmation par email | Lien de confirmation qui ouvre la session, y compris quand les jetons arrivent dans le fragment d'URL. | `src/app/auth/` |
 | Code d'invitation | 10 caractères sans signes confondables, que l'athlète retape à la main pour rejoindre un coach. | `generate_invite_code` (004), `LinkCoachForm` |
+| Consentement aux donnees de sante | Case dediee et decochee par defaut a l'inscription, sans laquelle le compte ne se cree pas. La date est enregistree et relisible dans les reglages ; le retrait passe par la suppression du compte. | Migration 020, `HealthConsentGate` |
 | Suppression du compte | Efface profil, séances, objectifs, messages, notifications et liaisons, en cascade. | `deleteOwnAccount`, migration 002 |
 | Installation sur l'écran d'accueil | L'app s'ajoute au téléphone et s'ouvre en plein écran. | `manifest.ts`, `icon.tsx`, `apple-icon.tsx` |
 

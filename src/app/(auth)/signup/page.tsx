@@ -103,6 +103,31 @@ export default function SignupPage() {
             </p>
           </div>
         )}
+        {/* Le consentement aux données de santé se recueille à part, jamais
+            noyé dans une acceptation globale : le RGPD le veut **explicite**
+            (art. 9.2.a). Décochée par défaut, et `required` — sans elle il
+            n'y a pas de base légale à traiter une FC max. */}
+        <div className="rounded-xl border border-line bg-card p-3.5">
+          <label className="flex gap-3 text-[13px] leading-relaxed">
+            <input
+              type="checkbox"
+              name="health_consent"
+              required
+              className="mt-0.5 size-4 shrink-0 accent-pine"
+            />
+            <span>
+              J&apos;autorise Optiperf à traiter mes <strong>données de
+              santé</strong> — fréquence cardiaque, seuil, VMA, effort
+              ressenti — pour calculer mes zones et ma charge
+              d&apos;entraînement, et à les partager avec le coach auquel je
+              me lie.{" "}
+              <Link href="/confidentialite" className="font-semibold text-pine hover:underline">
+                En savoir plus
+              </Link>
+            </span>
+          </label>
+        </div>
+
         {state?.error && (
           <p className="text-sm font-medium text-rpe-max">{state.error}</p>
         )}
