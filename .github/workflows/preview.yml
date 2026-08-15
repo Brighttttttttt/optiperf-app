@@ -15,7 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  affichage:
+  # Le nom du job est celui qui apparaît dans les checks d'une PR, et donc
+  # celui à cocher pour le rendre obligatoire : il doit se lire seul.
+  preversion:
+    name: Affichage de la préversion
     # Les préversions seulement : la production a son propre workflow, qui
     # fait davantage (fumée, migrations, en-têtes).
     if: >-
