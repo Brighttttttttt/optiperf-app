@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile, getSessionUser } from "@/lib/supabase/session";
@@ -194,6 +195,12 @@ export default async function SettingsPage({
         </form>
 
         <DeleteAccount role={profile.role} />
+
+        <p className="pb-2 text-center text-[13px] text-ink-soft">
+          <Link href="/confidentialite" className="hover:underline">
+            Confidentialité
+          </Link>
+        </p>
 
         <p className="text-center text-[12px] text-ink-soft pb-2">
           Optiperf · V1

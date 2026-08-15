@@ -68,6 +68,11 @@ export default function LoginPage() {
           Créer un compte
         </Link>
       </p>
+      <p className="mt-8 text-[13px] text-ink-soft">
+        <Link href="/confidentialite" className="hover:underline">
+          Confidentialité
+        </Link>
+      </p>
     </div>
   );
 }
