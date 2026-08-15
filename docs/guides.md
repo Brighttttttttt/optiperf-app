@@ -28,6 +28,30 @@ c'est le seul geste manuel qui reste, et rien ne vérifie qu'il a été fait.
 Une migration en `create or replace function` se rejoue sans risque, même
 plusieurs fois. Une migration qui crée une table, non.
 
+## Savoir ce que la base a déjà reçu
+
+Depuis le 14 août 2026, Supabase tient un **registre** :
+`supabase_migrations.schema_migrations`, une ligne par migration posée, avec
+son nom. Il était vide jusque-là — toutes les migrations ayant été collées à la
+main, aucune n'y était inscrite — et il a été complété d'un coup, après avoir
+vérifié table par table que le schéma correspondait bien au dépôt.
+
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+```
+
+Deux choses à savoir avant de s'y fier :
+
+- **Il n'est alimenté que par les outils.** Une migration collée dans le SQL
+  Editor s'applique sans rien y écrire. Le registre dit donc ce qui a été posé
+  *par un outil*, pas ce que la base contient — c'est `npm run smoke` qui
+  répond à la seconde question.
+- **L'ordre du registre est celui des numéros de fichier, pas celui des
+  commits.** La migration `011` a été fusionnée après `012` et `013`, sa PR
+  étant restée bloquée ; sa date d'inscription a été ramenée juste après `010`
+  pour que l'historique reflète l'ordre dans lequel les fichiers doivent être
+  appliqués.
+
 **C'est vérifié automatiquement depuis #121** : `npm run smoke` compare les
 tables déclarées dans `supabase/migrations/` à ce que la base expose, et échoue
 en nommant le fichier non appliqué. Le contrôle après déploiement passe donc au
