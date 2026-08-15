@@ -8,6 +8,13 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  * le reconstituer ici rendrait le test long sans rien vérifier de plus. Ce
  * qu'on regarde, c'est que la structure lue dans les tours **arrive à
  * l'écran** — des deux côtés, et avant même d'ouvrir la séance.
+ *
+ * **Plage horaire de ce fichier : 05 h UTC.** Depuis #107, deux activités du
+ * même athlète dont les départs sont à moins de cinq minutes sont reconnues
+ * comme la même sortie. Les fichiers de spec s'exécutent en parallèle et
+ * partagent les mêmes comptes : dater à `new Date()` entrait en collision
+ * avec `import.spec.ts` — qui dépose vers 10 h UTC — dès que la suite tournait
+ * à cette heure-là (#151). Voir le tableau des plages dans CLAUDE.md.
  */
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -74,7 +81,7 @@ async function poserSeanceAnalysable(
       session_id: seance.id,
       source: "fichier",
       external_id: `analyse-${crypto.randomUUID()}`,
-      started_at: new Date().toISOString(),
+      started_at: `${aujourdhui}T05:00:00Z`,
       date: aujourdhui,
       duration_min: 45,
       distance_m: 11000,
@@ -213,7 +220,7 @@ test("une séance sans tours explique son absence d'analyse", async ({
       session_id: seance.id,
       source: "fichier",
       external_id: `sans-tours-${crypto.randomUUID()}`,
-      started_at: new Date().toISOString(),
+      started_at: `${aujourdhui}T05:30:00Z`,
       date: aujourdhui,
       duration_min: 40,
       distance_m: 8000,

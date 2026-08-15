@@ -6,6 +6,18 @@ const PORT = 3100;
 // serveur local à démarrer.
 const DEPLOYE = process.env.PLAYWRIGHT_BASE_URL;
 
+/**
+ * Contournement de la protection Vercel, pour jouer ce contrôle contre une
+ * **préversion** et non seulement contre la production (#50).
+ *
+ * Les URL de préversion sont derrière le SSO Vercel : sans cet en-tête, elles
+ * répondent une redirection d'authentification à toutes les requêtes, et le
+ * contrôle vérifierait la page de connexion de Vercel en croyant lire l'app.
+ * Posé sur le contexte, il accompagne donc **toutes** les requêtes, y compris
+ * les navigations.
+ */
+const CONTOURNEMENT = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+
 // Les tests de fumée n'ont pas besoin d'une vraie base : un env factice
 // suffit, les visiteurs non connectés étant simplement redirigés. Les
 // parcours connectés, eux, reçoivent l'adresse d'une base réelle.
@@ -55,7 +67,21 @@ export default defineConfig({
       // l'incident #44, invisible pour une vérification sur le HTML brut.
       name: "production",
       testDir: "./e2e-prod",
-      use: { ...devices["Pixel 7"], baseURL: DEPLOYE },
+      use: {
+        ...devices["Pixel 7"],
+        baseURL: DEPLOYE,
+        ...(CONTOURNEMENT
+          ? {
+              extraHTTPHeaders: {
+                "x-vercel-protection-bypass": CONTOURNEMENT,
+                // Pose un cookie au premier passage : les sous-requêtes de la
+                // page (RSC, server actions) n'ont pas toujours les en-têtes
+                // du contexte.
+                "x-vercel-set-bypass-cookie": "true",
+              },
+            }
+          : {}),
+      },
     },
   ],
   webServer: DEPLOYE
