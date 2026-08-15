@@ -120,6 +120,7 @@ en gardant l'onglet courant.
 |---|---|---|---|---|
 | `/login` | — | Se connecter | Toute page protégée sans session | `/`, `/signup` |
 | `/signup` | — | Créer un compte, choisir son rôle | `/login` | `/login`, email de confirmation |
+| `/confidentialite` | — | Ce qui est enregistré, qui le voit, où c'est hébergé, comment tout effacer. **Publique** : c'est l'adresse qu'on donne avant de s'inscrire, et celle que réclament les programmes d'API des fabricants de montres | `/login`, `/settings` | `/login` |
 | `/auth/callback` | — | Ouvrir la session depuis un lien d'email | Email | `/`, `/auth/finaliser` |
 | `/auth/finaliser` | — | Lire les jetons du fragment | `/auth/callback` | `/` |
 | `/auth/strava/connexion` | Athlète | Poser le jeton anti-rejeu et partir vers Strava. Une **navigation**, jamais un formulaire : `form-action 'self'` interdirait de poster vers `strava.com` | `/settings` | strava.com |
