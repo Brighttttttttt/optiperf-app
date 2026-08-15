@@ -27,6 +27,12 @@ export type Profile = {
   vma_kmh: number | null;
   /** Fréquence au seuil lactique (migration 017), base de la méthode LTHR. */
   lthr: number | null;
+  /**
+   * Instant du consentement explicite aux données de santé (RGPD art. 9.2.a,
+   * migration 020). Null pour les comptes antérieurs : ils se prononcent à
+   * leur prochaine visite.
+   */
+  health_consent_at: string | null;
   /** Méthode de calcul des zones choisie par l'athlète. */
   zone_method: MethodeZones;
   created_at: string;

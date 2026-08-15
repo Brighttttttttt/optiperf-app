@@ -1122,3 +1122,25 @@ export async function deconnecterStrava(): Promise<ActionState> {
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/**
+ * Enregistre le consentement d'un compte antérieur à la migration 020 (#155).
+ *
+ * Ne se pose **qu'une fois** : la clause `is null` empêche d'écraser une date
+ * déjà donnée, et donc de rajeunir un consentement au fil des visites — ce qui
+ * reviendrait à ne plus savoir quand il a réellement été donné.
+ */
+export async function accepterDonneesSante(): Promise<ActionState> {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ health_consent_at: new Date().toISOString() })
+    .eq("id", user.id)
+    .is("health_consent_at", null);
+
+  if (error) return { error: "Impossible d'enregistrer ton accord. Réessaie." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

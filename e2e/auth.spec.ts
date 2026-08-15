@@ -56,3 +56,35 @@ test("les champs de saisie n'ont pas une police sous le seuil de zoom iOS", asyn
     .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(taille).toBeGreaterThanOrEqual(16);
 });
+
+/**
+ * Le consentement aux données de santé (#155).
+ *
+ * Le RGPD le veut **explicite** (art. 9.2.a) : une case dédiée, décochée par
+ * défaut, dont le texte nomme ce dont il s'agit. Une case pré-cochée, ou noyée
+ * dans une acceptation globale, ne vaudrait rien — et c'est un détail qui se
+ * perd au premier remaniement du formulaire si rien ne le retient.
+ */
+test("l'inscription demande un consentement explicite aux données de santé", async ({
+  page,
+}) => {
+  await page.goto("/signup");
+
+  const consentement = page.getByRole("checkbox", { name: /données de santé/i });
+  await expect(consentement).toBeVisible();
+
+  // Jamais pré-cochée : un consentement présumé n'est pas un consentement.
+  await expect(consentement).not.toBeChecked();
+
+  // Et le formulaire ne part pas sans elle. Le navigateur bloque sur le champ
+  // requis : on reste sur la page.
+  await page.getByLabel("Nom complet").fill("Test Consentement");
+  await page.getByLabel("Email").fill(`consent-${Date.now()}@example.com`);
+  await page.getByLabel("Mot de passe").fill("motdepasse123");
+    // « Créer **mon** compte » : le titre de la page, lui, dit « Créer un
+  // compte » — deux libellés proches qu'il ne faut pas confondre.
+  await page.getByRole("button", { name: "Créer mon compte" }).click();
+
+  await expect(page).toHaveURL(/\/signup$/);
+  await expect(consentement).not.toBeChecked();
+});
