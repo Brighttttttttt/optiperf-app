@@ -41,11 +41,40 @@ jobs:
       - name: Tests unitaires
         run: npm test
 
+      # Next réutilise ce cache d'une compilation à l'autre. Clé sur les
+      # sources : un cache périmé ferait au pire une compilation complète.
+      - name: Cache de compilation Next
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
       - name: Build
         run: npm run build
 
+      # Le navigateur pèse ~20 s de téléchargement, quatre fois par PR entre
+      # les différents workflows. La clé suit `package-lock.json` : toute
+      # mise à jour de Playwright invalide le cache, donc on ne joue jamais
+      # avec un binaire qui ne correspond pas à la bibliothèque.
+      - name: Cache du navigateur Playwright
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Les dépendances système (paquets apt) ne sont pas dans le cache : on
+      # les pose toujours, mais elles sont déjà largement présentes sur le
+      # runner. Seul le téléchargement du navigateur est évité.
       - name: Installer Chromium (Playwright)
-        run: npx playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Tests de fumée
         run: npm run test:e2e
@@ -77,8 +106,22 @@ jobs:
 
       # Démarre Postgres, l'authentification et l'API en local, et applique
       # les migrations du dépôt — ce qui les valide au passage.
+      #
+      # `-x` n'allume que ce dont les tests se servent : Postgres, **kong**
+      # (la passerelle qui expose /rest/v1 et /auth/v1), **gotrue** (l'auth),
+      # **postgrest** (l'API) et **realtime** (la messagerie, dont dépendent
+      # `MessageThread` et `Nav`).
+      #
+      # Écartés : l'interface Studio et son `postgres-meta`, le stockage de
+      # fichiers et son `imgproxy` (Optiperf n'utilise pas Supabase Storage),
+      # les edge functions, la collecte de logs (`logflare`, `vector`), le
+      # pooler de connexions (tout passe par PostgREST) et le serveur SMTP
+      # local — aucun parcours connecté ne passe par l'inscription par email,
+      # les comptes étant créés par `npm run seed` avec `email_confirm`.
       - name: Démarrer Supabase
-        run: supabase start
+        run: >-
+          supabase start -x
+          studio,postgres-meta,imgproxy,storage-api,edge-runtime,logflare,vector,supavisor,mailpit
 
       - name: Exposer les identifiants locaux
         run: |
@@ -108,11 +151,40 @@ jobs:
       - name: Peupler la base de test
         run: npm run seed
 
+      # Next réutilise ce cache d'une compilation à l'autre. Clé sur les
+      # sources : un cache périmé ferait au pire une compilation complète.
+      - name: Cache de compilation Next
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
       - name: Build
         run: npm run build
 
+      # Le navigateur pèse ~20 s de téléchargement, quatre fois par PR entre
+      # les différents workflows. La clé suit `package-lock.json` : toute
+      # mise à jour de Playwright invalide le cache, donc on ne joue jamais
+      # avec un binaire qui ne correspond pas à la bibliothèque.
+      - name: Cache du navigateur Playwright
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Les dépendances système (paquets apt) ne sont pas dans le cache : on
+      # les pose toujours, mais elles sont déjà largement présentes sur le
+      # runner. Seul le téléchargement du navigateur est évité.
       - name: Installer Chromium (Playwright)
-        run: npx playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Parcours connectés
         run: npm run test:e2e:auth
