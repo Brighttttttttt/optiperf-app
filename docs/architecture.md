@@ -120,21 +120,64 @@ ne regardait le site **réellement déployé**. Les étages « connectés » et
 d'un constat plus simple : toute la suite tournait en viewport de téléphone,
 donc rien n'aurait signalé une régression sur l'écran où le coach planifie.
 
-## Les deux automatismes de la CI
+## Les trois automatismes de la CI
 
 - **À chaque pull request** ([ci.yml](../.github/workflows/ci.yml)) : lint,
   types, tests unitaires, build, tests de fumée — puis un second travail qui
   démarre une base Supabase neuve, y applique **les migrations du dépôt** et
   joue les parcours connectés. Ce second travail garantit que le dépôt seul
   suffit à reconstruire une base qui marche.
+- **Sur chaque préversion** ([preview.yml](../.github/workflows/preview.yml)) :
+  le contrôle d'affichage, joué contre la préversion Vercel de la pull request.
+  C'est le même dispositif que celui d'après déploiement, mais **avant** la mise
+  en ligne — là où un défaut ne coûte aucun incident. Il demande le secret
+  `VERCEL_AUTOMATION_BYPASS_SECRET` (voir plus bas) ; sans lui, le contrôle est
+  sauté avec un avertissement plutôt que de rendre un vert qui ne veut rien dire.
 - **Après chaque déploiement de production**
   ([smoke-prod.yml](../.github/workflows/smoke-prod.yml)) : fumée production
-  puis contrôle d'affichage dans un vrai navigateur.
+  puis contrôle d'affichage dans un vrai navigateur. En cas d'échec, une issue
+  `incident` est ouverte automatiquement — une seule à la fois, tant qu'elle
+  n'est pas refermée.
 
 ## Le seul geste manuel qui reste
 
 Les migrations SQL sont appliquées **à la main** en production, dans le SQL
-Editor de Supabase, dans l'ordre numérique. La CI vérifie qu'elles sont valides,
-mais rien ne vérifie automatiquement que la production les a toutes reçues :
-c'est à contrôler après chaque PR qui ajoute un fichier dans
-`supabase/migrations/`.
+Editor de Supabase, dans l'ordre numérique. La CI vérifie qu'elles sont valides
+sur une base neuve — elle ne peut pas les poser à votre place.
+
+En revanche, une migration oubliée ne passe plus inaperçue : `npm run smoke`
+compare les tables déclarées dans `supabase/migrations/` à celles réellement
+présentes en base, et met le contrôle de production au rouge si l'une manque.
+La portée est celle des migrations qui **créent une table** ; un ajout de
+colonne ou de politique lui échappe encore.
+
+## Retour arrière
+
+À faire quand la production est inutilisable — pas quand un détail cloche, où
+un correctif en avant vaut mieux.
+
+1. Ouvrir [le tableau de bord Vercel](https://vercel.com) → projet
+   **optiperf-app** → onglet **Deployments**.
+2. Repérer le dernier déploiement de production **antérieur** à celui qui pose
+   problème, et vérifier à son horodatage que c'est bien le bon.
+3. Menu `⋯` de cette ligne → **Promote to Production**. La bascule prend
+   quelques secondes, sans reconstruction : le résultat est déjà bâti.
+4. Vérifier : `npm run smoke` en local, ou relancer le workflow « Smoke
+   production » à la main (`workflow_dispatch`).
+
+**Ce que le retour arrière ne défait pas :** les migrations SQL. Elles ne sont
+pas versionnées avec le code, et revenir à un déploiement antérieur laisse la
+base telle qu'elle est. Une migration qui a cassé la production se répare par
+une **nouvelle** migration qui l'annule, jamais en promouvant l'ancien code.
+
+Ensuite seulement, comprendre : la branche `master` porte encore le code fautif,
+et un déploiement ultérieur le remettrait en ligne. Corriger ou révoquer
+(`git revert`) avant de laisser repartir la chaîne.
+
+## Ce qu'il faut configurer une fois
+
+| Secret / variable | Où | À quoi ça sert |
+|---|---|---|
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Variables du dépôt GitHub | Laissent les contrôles de production se connecter au compte de démonstration. Publiques par nature. |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Secret du dépôt GitHub | Traverse le SSO qui protège les préversions. À copier depuis Vercel → projet → Settings → **Deployment Protection** → *Protection Bypass for Automation*. Sans lui, le contrôle de préversion se saute. |
+| `NEXT_PUBLIC_STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `PROVIDER_TOKEN_KEY` | Variables d'environnement Vercel | La connexion Strava (#105). Voir `.env.example`. |

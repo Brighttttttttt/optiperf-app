@@ -9,6 +9,9 @@ on:
 
 permissions:
   contents: read
+  # Ouvrir une issue quand la production tombe : sans cela, l'échec ne vit
+  # que dans l'onglet Actions, où il faut penser à aller le voir.
+  issues: write
 
 # L'alias public, et non l'`environment_url` du déploiement : les URL
 # spécifiques à un déploiement sont derrière le SSO Vercel et répondent
@@ -70,3 +73,13 @@ jobs:
           name: playwright-production
           path: playwright-report/
           retention-days: 7
+
+      # Le script dit pourquoi et comment ; le garder hors du YAML le rend
+      # lisible et vérifiable seul.
+      - name: Ouvrir une alerte
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIEN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: bash scripts/alerte-production.sh

@@ -1,0 +1,73 @@
+name: Contrôle de préversion
+
+# Le contrôle d'affichage, joué **avant** la mise en ligne (#50).
+#
+# `e2e-prod` est le seul dispositif capable de voir qu'une page répond
+# correctement tout en n'affichant rien — le mode de panne de l'incident #44,
+# invisible pour une vérification sur le HTML brut. Il ne tournait que contre
+# la production : quand il échouait, les utilisateurs étaient déjà tombés
+# dessus. Le jouer contre la préversion met ce filet là où il ne coûte aucun
+# incident.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  affichage:
+    # Les préversions seulement : la production a son propre workflow, qui
+    # fait davantage (fumée, migrations, en-têtes).
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment != 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Sans le secret de contournement, l'URL de préversion répond une
+      # redirection d'authentification Vercel : le contrôle vérifierait la
+      # page de connexion de Vercel en croyant lire l'app. Mieux vaut le dire
+      # et s'arrêter là que rendre un vert qui ne veut rien dire.
+      - name: Vérifier que le contournement est configuré
+        id: garde
+        env:
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          if [ -z "$BYPASS" ]; then
+            echo "configure=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VERCEL_AUTOMATION_BYPASS_SECRET absent — contrôle de préversion sauté. Voir docs/architecture.md."
+          else
+            echo "configure=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.garde.outputs.configure == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        if: steps.garde.outputs.configure == 'true'
+        run: npm ci
+
+      - name: Installer Chromium (Playwright)
+        if: steps.garde.outputs.configure == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Contrôle d'affichage sur la préversion
+        if: steps.garde.outputs.configure == 'true'
+        env:
+          # L'URL de ce déploiement précis, et non un alias : c'est bien
+          # **cette** préversion qu'on veut vérifier.
+          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: npx playwright test --project=production
+
+      - name: Rapport Playwright en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-preversion
+          path: playwright-report/
+          retention-days: 7
