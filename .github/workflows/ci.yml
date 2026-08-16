@@ -118,10 +118,31 @@ jobs:
       # pooler de connexions (tout passe par PostgREST) et le serveur SMTP
       # local — aucun parcours connecté ne passe par l'inscription par email,
       # les comptes étant créés par `npm run seed` avec `email_confirm`.
+      #
+      # Trois tentatives : un port déjà pris sur le runner fait échouer le
+      # démarrage sans que rien du dépôt n'y soit pour quelque chose (#157).
+      # Une vraie erreur — nom de service inconnu, migration invalide, image
+      # indisponible — échouera les trois fois, et le job restera rouge.
+      #
+      # `supabase stop` entre deux essais : après un démarrage partiel,
+      # certains conteneurs tournent déjà et la tentative suivante se
+      # heurterait à eux.
       - name: Démarrer Supabase
-        run: >-
-          supabase start -x
-          studio,postgres-meta,imgproxy,storage-api,edge-runtime,logflare,vector,supavisor,mailpit
+        run: |
+          services=studio,postgres-meta,imgproxy,storage-api,edge-runtime,logflare,vector,supavisor,mailpit
+          for essai in 1 2 3; do
+            echo "::group::Démarrage de Supabase — tentative $essai"
+            if supabase start -x "$services"; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "::warning::Démarrage en échec (tentative $essai)."
+            supabase stop --no-backup || true
+            sleep 10
+          done
+          echo "::error::Supabase n'a pas démarré après trois tentatives. Ce n'est pas une collision passagère : lire l'erreur ci-dessus."
+          exit 1
 
       - name: Exposer les identifiants locaux
         run: |
